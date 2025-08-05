@@ -419,6 +419,129 @@
 			</div>
 		</div>
 
+		<!-- Data Retention Section -->
+		<div class="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
+			<h2 class="text-lg font-medium text-gray-900 mb-4">Data Retention</h2>
+			<p class="text-sm text-gray-600 mb-4">Configure how long to keep historical data before automatic cleanup.</p>
+			
+			<form method="POST" action="?/updateRetentionSettings" use:enhance class="space-y-4">
+				<input type="hidden" name="admin_id" value={data.adminId} />
+				
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div>
+						<label for="access_log_retention_days" class="block text-sm font-medium text-gray-700 mb-2">
+							Access Log Retention (Days)
+						</label>
+						<input
+							type="number"
+							id="access_log_retention_days"
+							name="access_log_retention_days"
+							value={data.accessLogRetentionDays}
+							min="1"
+							max="3650"
+							required
+							class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+						<p class="text-xs text-gray-500 mt-1">Default: 90 days. Access logs older than this will be automatically deleted.</p>
+					</div>
+					
+					<div>
+						<label for="maintenance_log_retention_days" class="block text-sm font-medium text-gray-700 mb-2">
+							Maintenance Log Retention (Days)
+						</label>
+						<input
+							type="number"
+							id="maintenance_log_retention_days"
+							name="maintenance_log_retention_days"
+							value={data.maintenanceLogRetentionDays}
+							min="1"
+							max="3650"
+							required
+							class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+						<p class="text-xs text-gray-500 mt-1">Default: 180 days. Maintenance events older than this will be automatically deleted.</p>
+					</div>
+				</div>
+				
+				<div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+					<button
+						type="submit"
+						class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+					>
+						Update Retention Settings
+					</button>
+				</div>
+			</form>
+
+			<!-- Manual Cleanup Section -->
+			<div class="mt-6 pt-6 border-t border-gray-200">
+				<h3 class="text-md font-medium text-gray-900 mb-2">Manual Cleanup</h3>
+				<p class="text-sm text-gray-600 mb-4">
+					Clean up old data immediately based on current retention settings. 
+					This will delete access logs older than {data.accessLogRetentionDays} days and maintenance events older than {data.maintenanceLogRetentionDays} days.
+				</p>
+				
+				<!-- Data Statistics -->
+				<div class="bg-gray-50 rounded-lg p-4 mb-4">
+					<h4 class="text-sm font-medium text-gray-900 mb-3">Current Data Usage</h4>
+					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+						<div class="text-center">
+							<div class="text-lg font-bold text-blue-600">{data.dataStatistics.accessLogs.total.toLocaleString()}</div>
+							<div class="text-gray-500">Total Access Logs</div>
+						</div>
+						<div class="text-center">
+							<div class="text-lg font-bold text-green-600">{data.dataStatistics.maintenanceEvents.total.toLocaleString()}</div>
+							<div class="text-gray-500">Total Maintenance Events</div>
+						</div>
+						<div class="text-center">
+							<div class="text-lg font-bold text-purple-600">{data.dataStatistics.totalRecords.toLocaleString()}</div>
+							<div class="text-gray-500">Total Records</div>
+						</div>
+						<div class="text-center">
+							<div class="text-lg font-bold text-gray-600">{(data.dataStatistics.databaseSize / 1024 / 1024).toFixed(1)} MB</div>
+							<div class="text-gray-500">Database Size</div>
+						</div>
+					</div>
+					
+					{#if data.dataStatistics.accessLogs.oldest || data.dataStatistics.maintenanceEvents.oldest}
+						<div class="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-600">
+							{#if data.dataStatistics.accessLogs.oldest}
+								<div>Oldest access log: {new Date(data.dataStatistics.accessLogs.oldest).toLocaleDateString()}</div>
+							{/if}
+							{#if data.dataStatistics.maintenanceEvents.oldest}
+								<div>Oldest maintenance event: {new Date(data.dataStatistics.maintenanceEvents.oldest).toLocaleDateString()}</div>
+							{/if}
+						</div>
+					{/if}
+				</div>
+				
+				<form method="POST" action="?/cleanupOldData" use:enhance={({ formElement, formData, action, cancel }) => {
+					if (!confirm('Are you sure you want to permanently delete old data? This action cannot be undone.')) {
+						cancel();
+					}
+				}}>
+					<input type="hidden" name="admin_id" value={data.adminId} />
+					<button
+						type="submit"
+						class="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+					>
+						Clean Up Old Data Now
+					</button>
+				</form>
+				
+				{#if form?.cleanupResult}
+					<div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+						<div class="text-sm text-green-800">
+							<strong>Cleanup Summary:</strong><br>
+							• {form.cleanupResult.accessLogsDeleted} access logs deleted<br>
+							• {form.cleanupResult.maintenanceEventsDeleted} maintenance events deleted<br>
+							• Total: {form.cleanupResult.totalDeleted} records removed
+						</div>
+					</div>
+				{/if}
+			</div>
+		</div>
+
 		<!-- Reset Section -->
 		<div class="bg-white p-4 sm:p-6 rounded-lg shadow">
 			<h2 class="text-lg font-medium text-gray-900 mb-4">Reset Settings</h2>

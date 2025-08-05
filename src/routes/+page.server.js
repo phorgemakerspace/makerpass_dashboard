@@ -1,13 +1,16 @@
-import { userDb, resourceDb, logDb } from '$lib/database.js';
+import { userDb, resourceDb, logDb, maintenanceDb } from '$lib/database.js';
 
 export async function load() {
 	const users = userDb.getAll();
 	const resources = resourceDb.getAll();
 	const recentLogs = logDb.getAll({ limit: 10 });
+	const activeSessions = logDb.getAllActiveSessions();
+	const maintenanceAlerts = maintenanceDb.getAllMaintenanceAlerts();
 	
 	// Count resources by type
 	const doors = resources.filter(r => r.type === 'door').length;
 	const machines = resources.filter(r => r.type === 'machine').length;
+	const onlineResources = resources.filter(r => r.connection_status === 'online').length;
 	
 	// Count successful vs failed access attempts today
 	const today = new Date().toISOString().split('T')[0];
@@ -21,9 +24,14 @@ export async function load() {
 			totalResources: resources.length,
 			doors,
 			machines,
+			onlineResources,
 			successfulToday,
-			failedToday
+			failedToday,
+			activeSessions: activeSessions.length
 		},
-		recentLogs
+		resources,
+		recentLogs,
+		activeSessions,
+		maintenanceAlerts
 	};
 }

@@ -82,6 +82,85 @@
 			</div>
 		</div>
 
+		<!-- Real-time System Status -->
+		<div class="mt-6 sm:mt-8">
+			<h2 class="text-lg leading-6 font-medium text-gray-900 mb-4">System Status</h2>
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				<!-- Active Sessions -->
+				<div class="bg-white shadow rounded-lg p-6">
+					<h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+						<span class="w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
+						Active Sessions
+					</h3>
+					{#if data.activeSessions && data.activeSessions.length > 0}
+						<div class="space-y-2">
+							{#each data.activeSessions as session}
+								<div class="flex items-center justify-between py-2 px-3 bg-blue-50 rounded">
+									<div class="flex items-center">
+										<span class="text-sm font-medium text-gray-900">{session.user_name || 'Unknown User'}</span>
+										<span class="ml-2 text-xs text-gray-500">on {session.resource_name}</span>
+									</div>
+									<div class="text-right">
+										<span class="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+											{session.resource_type}
+										</span>
+										<div class="text-xs text-gray-500 mt-1">
+											{new Date(session.session_start).toLocaleTimeString()}
+										</div>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<p class="text-gray-500 text-sm">No active sessions</p>
+					{/if}
+				</div>
+
+				<!-- Maintenance Alerts -->
+				<div class="bg-white shadow rounded-lg p-6">
+					<h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+						<span class="w-3 h-3 bg-yellow-500 rounded-full mr-2"></span>
+						Maintenance Alerts
+					</h3>
+					{#if data.maintenanceAlerts && data.maintenanceAlerts.length > 0}
+						<div class="space-y-2">
+							{#each data.maintenanceAlerts.slice(0, 3) as alert}
+								<div class="flex items-center justify-between py-2 px-3 {alert.isOverdue ? 'bg-red-50' : 'bg-yellow-50'} rounded">
+									<div>
+										<span class="text-sm font-medium text-gray-900">{alert.resourceName}</span>
+										<p class="text-xs {alert.isOverdue ? 'text-red-600' : 'text-yellow-600'}">
+											{alert.intervalName}{alert.description ? `: ${alert.description}` : ''}
+										</p>
+										<div class="text-xs text-gray-500 mt-1">
+											Progress: {Math.round(alert.progress)}%
+											{#if alert.nextDue && !alert.isOverdue}
+												• Due: {new Date(alert.nextDue).toLocaleDateString()}
+											{/if}
+										</div>
+									</div>
+									<span class="text-xs px-2 py-1 {alert.isOverdue ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'} rounded-full">
+										{alert.isOverdue ? 'Overdue' : 'Warning'}
+									</span>
+								</div>
+							{/each}
+						</div>
+						{#if data.maintenanceAlerts.length > 3}
+							<div class="mt-3 text-xs text-gray-500">
+								Showing 3 of {data.maintenanceAlerts.length} alerts
+							</div>
+						{/if}
+					{:else}
+						<p class="text-gray-500 text-sm">No maintenance alerts</p>
+					{/if}
+					<div class="mt-4">
+						<a href="/maintenance" class="text-sm text-blue-600 hover:text-blue-800">
+							View maintenance dashboard →
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<!-- Recent Access Logs -->
 		<div class="mt-6 sm:mt-8">
 			<h2 class="text-lg leading-6 font-medium text-gray-900 mb-4">Recent Access Attempts</h2>

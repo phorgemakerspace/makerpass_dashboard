@@ -49,7 +49,11 @@
 			'invalid_rfid': 'Invalid RFID',
 			'access_not_permitted': 'Access Not Permitted',
 			'invalid_resource': 'Invalid Resource',
-			'server_error': 'Server Error'
+			'server_error': 'Server Error',
+			'Access granted': 'Access Granted',
+			'Session started': 'Session Started',
+			'Session ended': 'Session Ended',
+			'Session completed': 'Session Completed'
 		};
 		return reasonMap[reason] || reason;
 	}

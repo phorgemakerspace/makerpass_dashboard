@@ -3,6 +3,8 @@ import { adminDb } from '$lib/database.js';
 
 export async function load() {
 	const admin = adminDb.getAdmin();
+	const retentionSettings = adminDb.getRetentionSettings();
+	const dataStats = adminDb.getDataStatistics();
 	
 	return {
 		apiKey: admin.api_key,
@@ -11,7 +13,10 @@ export async function load() {
 		navigationColor: admin.navigation_color || '#2d2d2d',
 		linkColor: admin.link_color || '#ffffff',
 		logoColor: admin.logo_color || '#d25a2c',
-		logoFontColor: admin.logo_font_color || '#ffffff'
+		logoFontColor: admin.logo_font_color || '#ffffff',
+		accessLogRetentionDays: retentionSettings.accessLogRetentionDays,
+		maintenanceLogRetentionDays: retentionSettings.maintenanceLogRetentionDays,
+		dataStatistics: dataStats
 	};
 }
 
@@ -123,6 +128,50 @@ export const actions = {
 		} catch (error) {
 			console.error('Update logo font color error:', error);
 			return fail(500, { error: 'Failed to update logo font color' });
+		}
+	},
+
+	updateRetentionSettings: async ({ request }) => {
+		const data = await request.formData();
+		const accessLogDays = parseInt(data.get('access_log_retention_days'));
+		const maintenanceLogDays = parseInt(data.get('maintenance_log_retention_days'));
+		const adminId = data.get('admin_id');
+
+		if (!adminId || isNaN(accessLogDays) || isNaN(maintenanceLogDays)) {
+			return fail(400, { error: 'Valid retention days and admin ID are required' });
+		}
+
+		if (accessLogDays < 1 || accessLogDays > 3650 || maintenanceLogDays < 1 || maintenanceLogDays > 3650) {
+			return fail(400, { error: 'Retention days must be between 1 and 3650 (10 years)' });
+		}
+
+		try {
+			adminDb.updateRetentionSettings(adminId, accessLogDays, maintenanceLogDays);
+			return { success: true, message: 'Data retention settings updated successfully' };
+		} catch (error) {
+			console.error('Update retention settings error:', error);
+			return fail(500, { error: 'Failed to update retention settings' });
+		}
+	},
+
+	cleanupOldData: async ({ request }) => {
+		const data = await request.formData();
+		const adminId = data.get('admin_id');
+
+		if (!adminId) {
+			return fail(400, { error: 'Admin ID is required' });
+		}
+
+		try {
+			const result = adminDb.cleanupAllOldData();
+			return { 
+				success: true, 
+				message: `Cleanup completed: ${result.accessLogsDeleted} access logs and ${result.maintenanceEventsDeleted} maintenance events deleted`,
+				cleanupResult: result
+			};
+		} catch (error) {
+			console.error('Cleanup error:', error);
+			return fail(500, { error: 'Failed to cleanup old data' });
 		}
 	}
 };

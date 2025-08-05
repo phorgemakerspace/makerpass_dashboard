@@ -18,6 +18,11 @@ Thumbs.db
 !.env.example
 !.env.test
 
+#DB
+*.db
+*.db-shm
+*.db-wal
+
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
