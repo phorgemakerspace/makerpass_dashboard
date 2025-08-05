@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  makerpass-dashboard:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+    environment:
+      - NODE_ENV=production
+      - DB_PATH=/data/makerpass.db
+      - PORT=3000
+    restart: unless-stopped
