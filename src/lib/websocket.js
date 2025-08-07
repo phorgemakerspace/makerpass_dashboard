@@ -50,12 +50,15 @@ class RFIDWebSocketServer {
 	handleMessage(ws, message) {
 		switch (message.type) {
 			case 'auth_device':
+			case 'device_auth': // Support both formats for compatibility
 				this.authenticateDevice(ws, message);
 				break;
 			case 'auth_admin':
+			case 'admin_auth': // Support both formats for compatibility
 				this.authenticateAdmin(ws, message);
 				break;
 			case 'heartbeat':
+			case 'ping': // Support ping/pong for compatibility
 				this.handleHeartbeat(ws, message);
 				break;
 			case 'rfid_scan':
@@ -76,7 +79,8 @@ class RFIDWebSocketServer {
 	}
 
 	authenticateDevice(ws, message) {
-		const { api_key, resource_id } = message;
+		const { api_key, resource_id, device_id } = message;
+		const resourceId = resource_id || device_id; // Support both parameter names
 		
 		// Verify API key
 		const admin = adminDb.verifyApiKey(api_key);
@@ -89,7 +93,7 @@ class RFIDWebSocketServer {
 		}
 
 		// Verify resource exists
-		const resource = resourceDb.getByResourceId(resource_id);
+		const resource = resourceDb.getByResourceId(resourceId);
 		if (!resource) {
 			ws.send(JSON.stringify({ 
 				type: 'auth_error', 
@@ -99,7 +103,7 @@ class RFIDWebSocketServer {
 		}
 
 		// Store device connection
-		this.devices.set(resource_id, {
+		this.devices.set(resourceId, {
 			ws,
 			resourceId: resource.id,
 			lastHeartbeat: Date.now(),
@@ -107,13 +111,18 @@ class RFIDWebSocketServer {
 		});
 
 		// Update resource status in database
-		resourceDb.updateConnectionStatus(resource_id, 'online');
+		resourceDb.updateConnectionStatus(resourceId, 'online');
 
-		ws.resourceId = resource_id;
+		ws.resourceId = resourceId;
 		ws.isDevice = true;
 
 		ws.send(JSON.stringify({ 
 			type: 'auth_success',
+			device_id: resourceId, // Include for compatibility
+			resource_id: resourceId,
+			resource_name: resource.name,
+			enabled: Boolean(resource.enabled),
+			require_card_present: Boolean(resource.require_card_present),
 			resource: {
 				id: resource.id,
 				resource_id: resource.resource_id,
@@ -127,11 +136,11 @@ class RFIDWebSocketServer {
 		// Notify admins of device connection
 		this.broadcastToAdmins({
 			type: 'device_status',
-			resource_id,
+			resource_id: resourceId,
 			status: 'online'
 		});
 
-		console.log(`Device authenticated: ${resource_id} (${resource.name})`);
+		console.log(`Device authenticated: ${resourceId} (${resource.name})`);
 	}
 
 	authenticateAdmin(ws, message) {
@@ -179,7 +188,9 @@ class RFIDWebSocketServer {
 			}
 		}
 		
-		ws.send(JSON.stringify({ type: 'heartbeat_ack' }));
+		// Support both heartbeat_ack and pong responses
+		const responseType = message.type === 'ping' ? 'pong' : 'heartbeat_ack';
+		ws.send(JSON.stringify({ type: responseType }));
 	}
 
 	handleRFIDScan(ws, message) {
@@ -191,7 +202,8 @@ class RFIDWebSocketServer {
 			return;
 		}
 
-		const { rfid } = message;
+		const { rfid, rfid_code } = message;
+		const rfidCode = rfid || rfid_code; // Support both parameter names
 		const resource = resourceDb.getByResourceId(ws.resourceId);
 		
 		if (!resource) {
@@ -207,7 +219,7 @@ class RFIDWebSocketServer {
 			const log = logDb.create({
 				user_id: null,
 				resource_id: resource.id,
-				rfid,
+				rfid: rfidCode,
 				success: false,
 				reason: 'Resource disabled'
 			});
@@ -220,12 +232,12 @@ class RFIDWebSocketServer {
 		}
 
 		// Find user by RFID
-		const user = userDb.getByRfid(rfid);
+		const user = userDb.getByRfid(rfidCode);
 		if (!user) {
 			const log = logDb.create({
 				user_id: null,
 				resource_id: resource.id,
-				rfid,
+				rfid: rfidCode,
 				success: false,
 				reason: 'Unknown RFID'
 			});
@@ -243,7 +255,7 @@ class RFIDWebSocketServer {
 			const log = logDb.create({
 				user_id: user.id,
 				resource_id: resource.id,
-				rfid,
+				rfid: rfidCode,
 				success: false,
 				reason: 'No permission'
 			});
@@ -277,7 +289,7 @@ class RFIDWebSocketServer {
 				});
 			} else {
 				// Start new session
-				const logResult = logDb.startSession(user.id, resource.id, rfid);
+				const logResult = logDb.startSession(user.id, resource.id, rfidCode);
 				
 				ws.send(JSON.stringify({ 
 					type: 'session_started',
@@ -299,7 +311,7 @@ class RFIDWebSocketServer {
 			const log = logDb.create({
 				user_id: user.id,
 				resource_id: resource.id,
-				rfid,
+				rfid: rfidCode,
 				success: true,
 				reason: reason
 			});

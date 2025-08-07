@@ -1,8 +1,8 @@
 import Database from 'better-sqlite3';
-import { dev } from '$app/environment';
 import crypto from 'crypto';
 
-const DB_PATH = process.env.DB_PATH || './makerpass.db';
+const DB_PATH = (typeof process !== 'undefined' && process.env?.DB_PATH) || './makerpass.db';
+const isDev = typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production';
 
 let db;
 

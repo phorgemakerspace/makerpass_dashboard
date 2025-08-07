@@ -6,7 +6,7 @@ The MakerPass system uses WebSocket connections for real-time communication with
 
 ### Connection Details
 
-- **WebSocket URL**: `ws://localhost:8080`
+- **WebSocket URL**: `ws://localhost:3000/ws`
 - **Protocol**: JSON message-based communication
 - **Authentication**: API key-based authentication required
 
@@ -29,7 +29,8 @@ The MakerPass system uses WebSocket connections for real-time communication with
   "type": "auth_success",
   "device_id": "door-001",
   "resource_name": "Main Entrance",
-  "enabled": true
+  "enabled": true,
+  "require_card_present": false
 }
 ```
 
@@ -48,9 +49,7 @@ The MakerPass system uses WebSocket connections for real-time communication with
 ```json
 {
   "type": "access_granted",
-  "user_name": "John Doe",
-  "session_id": "session_1234567890_abc123",
-  "require_card_present": false
+  "user_name": "John Doe"
 }
 ```
 
@@ -324,10 +323,11 @@ This will:
 ### Starting the WebSocket Server
 
 ```bash
-node src/lib/websocket-server.js
+npm run build
+npm run preview  # or npm start
 ```
 
-The server will run on port 8080 and handle all device connections and admin monitoring.
+The server will run on port 3000 (or PORT env var) and WebSocket server will be available at `/ws` path.
 POST /api/access
 ```
 
