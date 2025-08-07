@@ -184,6 +184,45 @@
 	function getConnectionStatusIcon(status) {
 		return status === 'online' ? '●' : '○';
 	}
+	
+	// Calculate usage statistics for doors
+	function getUsageStats(logs) {
+		const now = new Date();
+		
+		// Get start of today (00:00:00 local time)
+		const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+		
+		// Get 7 days ago from start of today
+		const weekStart = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000); // 6 days ago + today = 7 days
+		
+		// Get first day of current month
+		const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+		
+		const successfulAccess = logs.filter(log => log.access_granted);
+		
+		const todayCount = successfulAccess.filter(log => {
+			const logDate = new Date(log.access_time);
+			const logDateStart = new Date(logDate.getFullYear(), logDate.getMonth(), logDate.getDate());
+			return logDateStart.getTime() === todayStart.getTime();
+		}).length;
+		
+		const weekCount = successfulAccess.filter(log => {
+			const logDate = new Date(log.access_time);
+			const logDateStart = new Date(logDate.getFullYear(), logDate.getMonth(), logDate.getDate());
+			return logDateStart >= weekStart;
+		}).length;
+		
+		const monthCount = successfulAccess.filter(log => {
+			const logDate = new Date(log.access_time);
+			return logDate >= monthStart;
+		}).length;
+		
+		return {
+			today: todayCount,
+			week: weekCount,
+			month: monthCount
+		};
+	}
 </script>
 
 <svelte:head>
@@ -358,6 +397,7 @@
 					</div>
 				</div>
 			{:else}
+				{@const stats = getUsageStats(accessLogs)}
 				<!-- Door usage stats -->
 				<div class="lg:col-span-2">
 					<div class="bg-white rounded-lg shadow border p-6">
@@ -365,15 +405,15 @@
 						
 						<div class="grid grid-cols-3 gap-4 text-center">
 							<div>
-								<p class="text-2xl font-bold text-blue-600">0</p>
+								<p class="text-2xl font-bold text-blue-600">{stats.today}</p>
 								<p class="text-sm text-gray-500">Today</p>
 							</div>
 							<div>
-								<p class="text-2xl font-bold text-green-600">0</p>
+								<p class="text-2xl font-bold text-green-600">{stats.week}</p>
 								<p class="text-sm text-gray-500">This Week</p>
 							</div>
 							<div>
-								<p class="text-2xl font-bold text-purple-600">0</p>
+								<p class="text-2xl font-bold text-purple-600">{stats.month}</p>
 								<p class="text-sm text-gray-500">This Month</p>
 							</div>
 						</div>
@@ -384,117 +424,123 @@
 
 		<!-- Recent Activity -->
 		<div class="mt-6">
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+			<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				<!-- Recent Access -->
-				<div class="bg-white rounded-lg shadow border p-6">
-					<h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Access</h3>
-					
-					{#if accessLogs.length === 0}
-						<div class="text-center py-8 text-gray-500">
-							<p>No recent access logs.</p>
-						</div>
-					{:else}
-						<div class="space-y-3 max-h-80 overflow-y-auto">
-							{#each accessLogs as log}
-								<div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-									<div>
-										<p class="text-sm font-medium text-gray-900">{log.user_name || `User ${log.user_id}`}</p>
-										<p class="text-xs text-gray-500">{formatDateTime(log.access_time)}</p>
+				<div class="lg:col-span-1">
+					<div class="bg-white rounded-lg shadow border p-6">
+						<h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Access</h3>
+						
+						{#if accessLogs.length === 0}
+							<div class="text-center py-8 text-gray-500">
+								<p>No recent access logs.</p>
+							</div>
+						{:else}
+							<div class="space-y-3 max-h-80 overflow-y-auto">
+								{#each accessLogs as log}
+									<div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+										<div>
+											<p class="text-sm font-medium text-gray-900">{log.user_name || `User ${log.user_id}`}</p>
+											<p class="text-xs text-gray-500">{formatDateTime(log.access_time)}</p>
+										</div>
+										<div class="text-right">
+											<span class="text-xs px-2 py-1 rounded-full {log.access_granted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+												{log.access_granted ? 'Granted' : 'Denied'}
+											</span>
+											{#if log.usage_minutes}
+												<p class="text-xs text-gray-500 mt-1">{formatDuration(log.usage_minutes)}</p>
+											{/if}
+										</div>
 									</div>
-									<div class="text-right">
-										<span class="text-xs px-2 py-1 rounded-full {log.access_granted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-											{log.access_granted ? 'Granted' : 'Denied'}
-										</span>
-										{#if log.usage_minutes}
-											<p class="text-xs text-gray-500 mt-1">{formatDuration(log.usage_minutes)}</p>
-										{/if}
-									</div>
-								</div>
-							{/each}
-						</div>
-					{/if}
+								{/each}
+							</div>
+						{/if}
+					</div>
 				</div>
 
 				<!-- Recent Maintenance (for machines) -->
 				{#if resource.type === 'machine'}
-					<div class="bg-white rounded-lg shadow border p-6">
-						<div class="flex justify-between items-center mb-4">
-							<h3 class="text-lg font-semibold text-gray-900">Recent Maintenance</h3>
-							{#if maintenanceEvents.length > 0}
-								<a 
-									href="/resources/{resource.resource_id}/maintenance" 
-									class="text-blue-600 hover:text-blue-800 text-sm font-medium"
-								>
-									View All →
-								</a>
-							{/if}
-						</div>
-						
-						{#if maintenanceEvents.length === 0}
-							<div class="text-center py-8 text-gray-500">
-								<p>No maintenance events recorded.</p>
-							</div>
-						{:else}
-							<div class="space-y-4 max-h-80 overflow-y-auto">
-								{#each maintenanceEvents.slice(0, 5) as event}
-									<div class="border rounded-lg p-3 bg-gray-50">
-										<div class="flex justify-between items-start mb-2">
-											<div class="flex-1">
-												<div class="flex items-center space-x-2">
-													<h4 class="text-sm font-medium text-gray-900">
-														{event.interval_name || 'General Maintenance'}
-													</h4>
-													<span class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 capitalize">
-														{event.maintenance_type}
-													</span>
-												</div>
-												<p class="text-xs text-gray-500 mt-1">
-													{formatDateTime(event.maintenance_date)}
-												</p>
-											</div>
-										</div>
-										
-										{#if event.performed_by_name}
-											<div class="mb-2">
-												<span class="text-xs text-gray-500">Performed by:</span>
-												<span class="text-xs text-gray-700 font-medium ml-1">{event.performed_by_name}</span>
-											</div>
-										{/if}
-										
-										{#if event.notes}
-											<div class="bg-white rounded p-2 border">
-												<p class="text-xs text-gray-600 leading-relaxed">{event.notes}</p>
-											</div>
-										{/if}
-									</div>
-								{/each}
-							</div>
-							<div class="mt-3 text-xs text-gray-400 text-center">
-								{#if maintenanceEvents.length > 5}
-									Showing 5 of {maintenanceEvents.length} maintenance events
-								{:else}
-									{maintenanceEvents.length} maintenance event{maintenanceEvents.length === 1 ? '' : 's'}
+					<div class="lg:col-span-2">
+						<div class="bg-white rounded-lg shadow border p-6">
+							<div class="flex justify-between items-center mb-4">
+								<h3 class="text-lg font-semibold text-gray-900">Recent Maintenance</h3>
+								{#if maintenanceEvents.length > 0}
+									<a 
+										href="/resources/{resource.resource_id}/maintenance" 
+										class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+									>
+										View All →
+									</a>
 								{/if}
 							</div>
-						{/if}
+							
+							{#if maintenanceEvents.length === 0}
+								<div class="text-center py-8 text-gray-500">
+									<p>No maintenance events recorded.</p>
+								</div>
+							{:else}
+								<div class="space-y-4 max-h-80 overflow-y-auto">
+									{#each maintenanceEvents.slice(0, 5) as event}
+										<div class="border rounded-lg p-3 bg-gray-50">
+											<div class="flex justify-between items-start mb-2">
+												<div class="flex-1">
+													<div class="flex items-center space-x-2">
+														<h4 class="text-sm font-medium text-gray-900">
+															{event.interval_name || 'General Maintenance'}
+														</h4>
+														<span class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 capitalize">
+															{event.maintenance_type}
+														</span>
+													</div>
+													<p class="text-xs text-gray-500 mt-1">
+														{formatDateTime(event.maintenance_date)}
+													</p>
+												</div>
+											</div>
+											
+											{#if event.performed_by_name}
+												<div class="mb-2">
+													<span class="text-xs text-gray-500">Performed by:</span>
+													<span class="text-xs text-gray-700 font-medium ml-1">{event.performed_by_name}</span>
+												</div>
+											{/if}
+											
+											{#if event.notes}
+												<div class="bg-white rounded p-2 border">
+													<p class="text-xs text-gray-600 leading-relaxed">{event.notes}</p>
+												</div>
+											{/if}
+										</div>
+									{/each}
+								</div>
+								<div class="mt-3 text-xs text-gray-400 text-center">
+									{#if maintenanceEvents.length > 5}
+										Showing 5 of {maintenanceEvents.length} maintenance events
+									{:else}
+										{maintenanceEvents.length} maintenance event{maintenanceEvents.length === 1 ? '' : 's'}
+									{/if}
+								</div>
+							{/if}
+						</div>
 					</div>
 				{:else}
 					<!-- Door statistics -->
-					<div class="bg-white rounded-lg shadow border p-6">
-						<h3 class="text-lg font-semibold text-gray-900 mb-4">Access Statistics</h3>
-						
-						<div class="space-y-4">
-							<div class="flex justify-between">
-								<span class="text-sm text-gray-600">Total Access Attempts:</span>
-								<span class="text-sm font-medium text-gray-900">{accessLogs.length}</span>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-sm text-gray-600">Successful Access:</span>
-								<span class="text-sm font-medium text-green-600">{accessLogs.filter(log => log.access_granted).length}</span>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-sm text-gray-600">Denied Access:</span>
-								<span class="text-sm font-medium text-red-600">{accessLogs.filter(log => !log.access_granted).length}</span>
+					<div class="lg:col-span-2">
+						<div class="bg-white rounded-lg shadow border p-6">
+							<h3 class="text-lg font-semibold text-gray-900 mb-4">Access Statistics</h3>
+							
+							<div class="space-y-4">
+								<div class="flex justify-between">
+									<span class="text-sm text-gray-600">Total Access Attempts:</span>
+									<span class="text-sm font-medium text-gray-900">{accessLogs.length}</span>
+								</div>
+								<div class="flex justify-between">
+									<span class="text-sm text-gray-600">Successful Access:</span>
+									<span class="text-sm font-medium text-green-600">{accessLogs.filter(log => log.access_granted).length}</span>
+								</div>
+								<div class="flex justify-between">
+									<span class="text-sm text-gray-600">Denied Access:</span>
+									<span class="text-sm font-medium text-red-600">{accessLogs.filter(log => !log.access_granted).length}</span>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -506,8 +552,8 @@
 
 <!-- Add Maintenance Interval Modal -->
 {#if showAddModal}
-	<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" role="dialog" on:click={closeModals} on:keydown={(e) => e.key === 'Escape' && closeModals()}>
-		<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" role="dialog" on:click|stopPropagation on:keydown|stopPropagation>
+	<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" role="dialog" tabindex="-1" on:click={closeModals} on:keydown={(e) => e.key === 'Escape' && closeModals()}>
+		<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" role="dialog" tabindex="0" on:click|stopPropagation on:keydown|stopPropagation>
 			<form method="POST" action="?/createMaintenanceInterval" use:enhance on:submit={closeModals}>
 				<h3 class="text-lg font-medium text-gray-900 mb-4">Add Maintenance Interval</h3>
 				
@@ -617,8 +663,8 @@
 
 <!-- Edit Maintenance Interval Modal -->
 {#if showEditModal && editingInterval}
-	<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" role="dialog" on:click={closeModals} on:keydown={(e) => e.key === 'Escape' && closeModals()}>
-		<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" role="dialog" on:click|stopPropagation on:keydown|stopPropagation>
+	<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" role="dialog" tabindex="-1" on:click={closeModals} on:keydown={(e) => e.key === 'Escape' && closeModals()}>
+		<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" role="dialog" tabindex="0" on:click|stopPropagation on:keydown|stopPropagation>
 			<form method="POST" action="?/updateMaintenanceInterval" use:enhance on:submit={closeModals}>
 				<input type="hidden" name="id" value={editingInterval.id} />
 				

@@ -24,6 +24,20 @@
 		showUserDropdown = false;
 	}
 
+	// Handle machine selection change in the dropdown
+	function handleMachineSelection(event) {
+		const resourceId = event.target.value;
+		if (resourceId) {
+			// Find the full resource object from the maintenance data
+			const machineData = data.maintenanceData.find(d => d.resource.resource_id === resourceId);
+			selectedResource = machineData ? machineData.resource : null;
+		} else {
+			selectedResource = null;
+		}
+		// Clear any previously selected interval when changing machines
+		selectedInterval = null;
+	}
+
 	function closeModal() {
 		showLogMaintenanceModal = false;
 		selectedResource = null;
@@ -195,115 +209,166 @@
 				</a>
 			</div>
 		{:else}
-			<div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-				{#each data.maintenanceData as { resource, intervals, events }}
-					<div class="bg-white rounded-lg shadow border p-6 flex flex-col">
-						<div class="flex items-start justify-between mb-4">
-							<div>
-								<h3 class="text-lg font-semibold text-gray-900">{resource.name}</h3>
-								<p class="text-sm text-gray-500">{resource.category} • ID: {resource.resource_id}</p>
-							</div>
-							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {resource.enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-								{resource.enabled ? 'Active' : 'Disabled'}
-							</span>
-						</div>
-
-						<!-- Content that can grow -->
-						<div class="flex-grow">
-							{#if intervals.length === 0}
-								<div class="text-center py-6 text-gray-400">
-									<p class="text-sm">No maintenance intervals configured</p>
-									<a 
-										href="/resources/{resource.resource_id}"
-										class="mt-2 text-blue-600 hover:text-blue-800 text-sm"
-									>
-										+ Add Interval
-									</a>
-								</div>
-							{:else}
-								<div class="space-y-3 mb-4">
-									<h4 class="text-sm font-medium text-gray-700">Maintenance Intervals</h4>
-									{#each intervals as interval}
-										{@const status = getMaintenanceStatus(interval)}
-										<div class="border rounded p-3 {status.bg}">
-											<div class="flex justify-between items-start">
-												<div>
-													<p class="text-sm font-medium text-gray-900">{interval.name}</p>
-													<p class="text-xs text-gray-600">
-														Every {formatIntervalInOriginalUnit(interval.interval_value, interval.display_unit)} 
-														({interval.interval_type})
-													</p>
-												</div>
-												<span class="text-xs px-2 py-1 rounded-full {status.bg} {status.color} border">
-													{status.status}
-												</span>
-											</div>
-											
-											<!-- Real progress bar -->
-											<div class="mt-2">
-												<div class="w-full bg-gray-200 rounded-full h-1.5">
-													<div class="h-1.5 rounded-full {getProgressColor(interval.progress, interval.isOverdue)}" 
-														 style="width: {Math.min(interval.progress, 100)}%"></div>
-												</div>
-												<div class="text-xs text-gray-500 mt-1">
-													{getNextDueMessage(interval)}
-												</div>
-											</div>
-										</div>
-									{/each}
-								</div>
-							{/if}
-						</div>
-
-						<!-- Actions stuck to bottom -->
-						<div class="mt-4 flex space-x-2">
-							<a
-								href="/resources/{resource.resource_id}"
-								class="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded text-sm font-medium text-center"
-							>
-								View Details
-							</a>
-							<button
-								on:click={() => openLogMaintenanceModal(resource)}
-								class="flex-1 bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded text-sm font-medium"
-							>
-								Log Maintenance
-							</button>
-						</div>
-					</div>
-				{/each}
-			</div>
-
-			<!-- Real summary stats -->
+			<!-- Summary stats -->
 			{@const allIntervals = data.maintenanceData.flatMap(d => d.intervals)}
 			{@const overdueCount = allIntervals.filter(i => i.isOverdue).length}
 			{@const warningCount = allIntervals.filter(i => !i.isOverdue && i.progress >= 80).length}
 			{@const upToDateCount = allIntervals.filter(i => !i.isOverdue && i.progress < 80).length}
 			
-			<div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
-				<div class="bg-white rounded-lg shadow border p-4 text-center">
-					<p class="text-2xl font-bold text-gray-900">{data.maintenanceData.length}</p>
-					<p class="text-sm text-gray-500">Total Machines</p>
+			<div class="mb-8 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+				<div class="bg-white rounded-lg shadow border p-3 sm:p-4 text-center">
+					<p class="text-xl sm:text-2xl font-bold text-gray-900">{data.maintenanceData.length}</p>
+					<p class="text-xs sm:text-sm text-gray-500">Total Machines</p>
 				</div>
-				<div class="bg-white rounded-lg shadow border p-4 text-center">
-					<p class="text-2xl font-bold text-red-600">{overdueCount}</p>
-					<p class="text-sm text-gray-500">Overdue</p>
+				<div class="bg-white rounded-lg shadow border p-3 sm:p-4 text-center">
+					<p class="text-xl sm:text-2xl font-bold text-red-600">{overdueCount}</p>
+					<p class="text-xs sm:text-sm text-gray-500">Overdue</p>
 				</div>
-				<div class="bg-white rounded-lg shadow border p-4 text-center">
-					<p class="text-2xl font-bold text-yellow-600">{warningCount}</p>
-					<p class="text-sm text-gray-500">Due Soon</p>
+				<div class="bg-white rounded-lg shadow border p-3 sm:p-4 text-center">
+					<p class="text-xl sm:text-2xl font-bold text-yellow-600">{warningCount}</p>
+					<p class="text-xs sm:text-sm text-gray-500">Due Soon</p>
 				</div>
-				<div class="bg-white rounded-lg shadow border p-4 text-center">
-					<p class="text-2xl font-bold text-green-600">{upToDateCount}</p>
-					<p class="text-sm text-gray-500">Up to Date</p>
+				<div class="bg-white rounded-lg shadow border p-3 sm:p-4 text-center">
+					<p class="text-xl sm:text-2xl font-bold text-green-600">{upToDateCount}</p>
+					<p class="text-xs sm:text-sm text-gray-500">Up to Date</p>
 				</div>
 			</div>
+
+			<!-- Header with General Maintenance Link -->
+			<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+				<h2 class="text-xl font-semibold text-gray-900">Upcoming Maintenance Tasks</h2>
+				<button
+					type="button"
+					on:click={() => openLogMaintenanceModal(null)}
+					class="text-blue-600 hover:text-blue-800 font-medium bg-transparent border-none cursor-pointer p-0 text-left sm:text-right"
+				>
+					+ Log General Maintenance
+				</button>
+			</div>
+
+			<!-- Maintenance Tasks List -->
+			{@const allTasks = data.maintenanceData
+				.flatMap(({ resource, intervals }) => 
+					intervals.map(interval => ({ ...interval, resource }))
+				)
+				.sort((a, b) => {
+					// Sort by priority: overdue first, then by progress percentage (highest first)
+					if (a.isOverdue && !b.isOverdue) return -1;
+					if (!a.isOverdue && b.isOverdue) return 1;
+					if (a.isOverdue && b.isOverdue) {
+						// Both overdue, sort by how overdue they are (most overdue first)
+						return new Date(a.nextDue || 0) - new Date(b.nextDue || 0);
+					}
+					// Neither overdue, sort by progress (closest to due first)
+					return b.progress - a.progress;
+				})
+			}
+
+			{#if allTasks.length === 0}
+				<div class="bg-white rounded-lg shadow border p-8 text-center">
+					<div class="text-gray-400 mb-4">
+						<svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+					</div>
+					<p class="text-lg text-gray-500 mb-2">No maintenance intervals configured</p>
+					<p class="text-sm text-gray-400 mb-4">Add maintenance intervals to machines to track upcoming tasks</p>
+					<a href="/resources" class="text-blue-600 hover:text-blue-800 font-medium">
+						Go to Resources →
+					</a>
+				</div>
+			{:else}
+				<div class="bg-white rounded-lg shadow border overflow-hidden">
+					<div class="divide-y divide-gray-200">
+						{#each allTasks as task}
+							{@const status = getMaintenanceStatus(task)}
+							<div class="p-3 sm:p-4 hover:bg-gray-50 transition-colors">
+								<div class="flex flex-col gap-3 sm:gap-0 sm:flex-row sm:items-center sm:justify-between">
+									<div class="flex-1 min-w-0">
+										<div class="flex items-center space-x-3 mb-2">
+											<!-- Priority indicator -->
+											<div class="flex-shrink-0">
+												{#if task.isOverdue}
+													<div class="w-3 h-3 bg-red-500 rounded-full"></div>
+												{:else if task.progress >= 80}
+													<div class="w-3 h-3 bg-yellow-500 rounded-full"></div>
+												{:else}
+													<div class="w-3 h-3 bg-green-500 rounded-full"></div>
+												{/if}
+											</div>
+											
+											<!-- Task info -->
+											<div class="flex-1 min-w-0">
+												<div class="flex items-center space-x-2 mb-1">
+													<h3 class="text-sm font-medium text-gray-900 truncate">
+														{task.name}
+													</h3>
+													<span class="text-xs px-2 py-1 rounded-full {status.bg} {status.color} flex-shrink-0">
+														{#if task.isOverdue}
+															Overdue
+														{:else if task.progress >= 80}
+															Due Soon
+														{:else}
+															On Track
+														{/if}
+													</span>
+												</div>
+												<div class="flex flex-col sm:flex-row sm:items-center sm:space-x-4">
+													<p class="text-sm text-gray-600 mb-1 sm:mb-0">
+														<a href="/resources/{task.resource.resource_id}" class="font-medium hover:text-blue-600">{task.resource.name}</a> • 
+														{task.resource.category}
+													</p>
+													<p class="text-sm text-gray-500">
+														Every {formatIntervalInOriginalUnit(task.interval_value, task.display_unit)}
+													</p>
+												</div>
+											</div>
+										</div>
+										
+										<!-- Progress bar and status -->
+										<div class="flex items-center space-x-3 sm:space-x-4">
+											<div class="flex-1">
+												<div class="w-full bg-gray-200 rounded-full h-2">
+													<div class="h-2 rounded-full {getProgressColor(task.progress, task.isOverdue)}" 
+														 style="width: {Math.min(task.progress, 100)}%"></div>
+												</div>
+											</div>
+											<div class="text-xs sm:text-sm text-gray-500 whitespace-nowrap">
+												{getNextDueMessage(task)}
+											</div>
+											<div class="text-xs sm:text-sm font-medium text-gray-900 flex-shrink-0">
+												{Math.round(task.progress)}%
+											</div>
+										</div>
+									</div>
+									
+									<!-- Action buttons -->
+									<div class="flex items-center justify-end space-x-2 sm:ml-4 pt-2 sm:pt-0">
+										<a
+											href="/resources/{task.resource.resource_id}/maintenance"
+											class="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded border border-blue-200 hover:border-blue-300 whitespace-nowrap"
+										>
+											View Logs
+										</a>
+										<button
+											on:click={() => openLogMaintenanceModal(task.resource, task)}
+											class="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded whitespace-nowrap"
+										>
+											Log Maintenance
+										</button>
+									</div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
 		{/if}
 	</div>
 </div>
 
 <!-- Log Maintenance Modal -->
-{#if showLogMaintenanceModal && selectedResource}
+{#if showLogMaintenanceModal}
 	<div 
 		class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" 
 		role="dialog" 
@@ -321,7 +386,7 @@
 		>
 			<form 
 				method="POST" 
-				action="/resources/{selectedResource.resource_id}?/logMaintenance" 
+				action={selectedResource ? `/resources/${selectedResource.resource_id}?/logMaintenance` : '?/logGeneralMaintenance'}
 				class="space-y-4"
 				use:enhance={({ formElement, formData, action, cancel }) => {
 					return async ({ result, update }) => {
@@ -335,7 +400,15 @@
 				}}
 			>
 				<div class="flex justify-between items-center mb-4">
-					<h3 class="text-lg font-semibold text-gray-900">Log Maintenance</h3>
+					<h3 class="text-lg font-semibold text-gray-900">
+						{#if selectedInterval}
+							Log Maintenance: {selectedInterval.name}
+						{:else if !selectedResource}
+							Log General Maintenance
+						{:else}
+							Log Maintenance
+						{/if}
+					</h3>
 					<button 
 						type="button" 
 						on:click={closeModal} 
@@ -348,24 +421,73 @@
 					</button>
 				</div>
 				
-				<div class="text-sm text-gray-600 mb-4">
-					<strong>{selectedResource.name}</strong> • {selectedResource.resource_id}
-				</div>
+				<!-- Machine Selection (for general maintenance) -->
+				{#if !selectedResource}
+					<div>
+						<label for="resource_id" class="block text-sm font-medium text-gray-700 mb-1">
+							Select Machine
+						</label>
+						<select 
+							id="resource_id" 
+							name="resource_id" 
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+							on:change={handleMachineSelection}
+							required
+						>
+							<option value="">Choose a machine...</option>
+							{#each data.maintenanceData as { resource }}
+								<option value={resource.resource_id}>{resource.name} ({resource.category})</option>
+							{/each}
+						</select>
+					</div>
+				{:else}
+					<div class="text-sm text-gray-600 mb-4">
+						<strong>{selectedResource.name}</strong> • {selectedResource.resource_id}
+					</div>
+					<input type="hidden" name="resource_id" value={selectedResource.resource_id} />
+				{/if}
 
 				<div>
 					<label for="interval_id" class="block text-sm font-medium text-gray-700 mb-1">
 						Maintenance Interval (Optional)
 					</label>
-					<select 
-						id="interval_id" 
-						name="interval_id" 
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-					>
-						<option value="">General maintenance (not tied to specific interval)</option>
-						{#each data.maintenanceData.find(d => d.resource.id === selectedResource.id)?.intervals || [] as interval}
-							<option value={interval.id}>{interval.name}</option>
-						{/each}
-					</select>
+					{#if selectedInterval}
+						<!-- Pre-selected interval (read-only display) -->
+						<div class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
+							<div class="flex justify-between items-center">
+								<span class="font-medium text-gray-900">{selectedInterval.name}</span>
+								<button
+									type="button"
+									on:click={() => selectedInterval = null}
+									class="text-sm text-blue-600 hover:text-blue-800"
+								>
+									Change
+								</button>
+							</div>
+							<p class="text-xs text-gray-500 mt-1">
+								{selectedInterval.resource.name} • Every {formatIntervalInOriginalUnit(selectedInterval.interval_value, selectedInterval.display_unit)}
+							</p>
+						</div>
+						<input type="hidden" name="interval_id" value={selectedInterval.id} />
+					{:else if selectedResource}
+						<!-- Dropdown to select interval for specific machine -->
+						<select 
+							id="interval_id" 
+							name="interval_id" 
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						>
+							<option value="">General maintenance (not tied to specific interval)</option>
+							{#each data.maintenanceData.find(d => d.resource.resource_id === selectedResource.resource_id)?.intervals || [] as interval}
+								<option value={interval.id}>{interval.name}</option>
+							{/each}
+						</select>
+					{:else}
+						<!-- No interval selection when no machine is selected yet -->
+						<div class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500">
+							Select a machine first to choose an interval (optional)
+						</div>
+						<input type="hidden" name="interval_id" value="" />
+					{/if}
 				</div>
 
 				<div>
