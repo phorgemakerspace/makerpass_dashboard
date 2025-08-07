@@ -1,6 +1,17 @@
 import { createServer } from 'http';
-import { handler } from './build/handler.js';
-import { rfidWebSocket } from './src/lib/websocket.js';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Determine if we're in build directory or root
+const isInBuild = __dirname.endsWith('build');
+const handlerPath = isInBuild ? './handler.js' : './build/handler.js';
+const websocketPath = isInBuild ? '../src/lib/websocket.js' : './src/lib/websocket.js';
+
+const { handler } = await import(handlerPath);
+const { rfidWebSocket } = await import(websocketPath);
 
 const port = process.env.PORT || 3000;
 const host = process.env.HOST || '0.0.0.0';

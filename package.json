@@ -5,9 +5,9 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build",
-		"preview": "node server.js",
-		"start": "node server.js",
+		"build": "vite build && cp server.js build/",
+		"preview": "node build/server.js",
+		"start": "node build/server.js",
 		"prepare": "svelte-kit sync || echo ''"
 	},
 	"devDependencies": {
