@@ -32,7 +32,8 @@ export async function load() {
 	}
 	
 	return {
-		maintenanceData
+		maintenanceData,
+		recentLogs: maintenanceDb.getAllMaintenanceLogs({ limit: 5 })
 	};
 }
 

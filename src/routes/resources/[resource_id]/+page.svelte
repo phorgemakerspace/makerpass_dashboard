@@ -1,11 +1,11 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
 	
 	export let data;
 	export let form;
 	
-	const { resource, maintenanceIntervals, maintenanceEvents, accessLogs } = data;
+	// Don't destructure data here - access it reactively in the template
+	// const { resource, maintenanceIntervals, maintenanceEvents, accessLogs } = data;
 	
 	let showAddModal = false;
 	let showEditModal = false;
@@ -226,7 +226,7 @@
 </script>
 
 <svelte:head>
-	<title>{resource.name} - Resource Details</title>
+	<title>{data.resource.name} - Resource Details</title>
 </svelte:head>
 
 <div class="px-4 py-6 sm:px-0">
@@ -256,19 +256,19 @@
 			<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
 				<div>
 					<h1 class="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
-						{resource.name}
+						{data.resource.name}
 					</h1>
 					<p class="text-gray-600 mt-2 text-sm sm:text-base">
-						{resource.type === 'door' ? 'Door' : `Machine - ${resource.category || 'Uncategorized'}`}
+						{data.resource.type === 'door' ? 'Door' : `Machine - ${data.resource.category || 'Uncategorized'}`}
 					</p>
 				</div>
 				<div class="flex items-center space-x-4">
-					<span class="{getConnectionStatusColor(resource.connection_status)} text-lg flex items-center" title="Connection Status">
-						{getConnectionStatusIcon(resource.connection_status)}
-						<span class="ml-2 text-sm text-gray-600">{resource.connection_status}</span>
+					<span class="{getConnectionStatusColor(data.resource.connection_status)} text-lg flex items-center" title="Connection Status">
+						{getConnectionStatusIcon(data.resource.connection_status)}
+						<span class="ml-2 text-sm text-gray-600">{data.resource.connection_status}</span>
 					</span>
-					<span class="px-3 py-1 rounded-full text-sm font-medium {resource.enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-						{resource.enabled ? 'Enabled' : 'Disabled'}
+					<span class="px-3 py-1 rounded-full text-sm font-medium {data.resource.enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+						{data.resource.enabled ? 'Enabled' : 'Disabled'}
 					</span>
 				</div>
 			</div>
@@ -284,32 +284,32 @@
 					<dl class="space-y-3">
 						<div>
 							<dt class="text-sm font-medium text-gray-500">Resource ID</dt>
-							<dd class="text-sm text-gray-900">{resource.resource_id}</dd>
+							<dd class="text-sm text-gray-900">{data.resource.resource_id}</dd>
 						</div>
 						<div>
 							<dt class="text-sm font-medium text-gray-500">Type</dt>
-							<dd class="text-sm text-gray-900 capitalize">{resource.type}</dd>
+							<dd class="text-sm text-gray-900 capitalize">{data.resource.type}</dd>
 						</div>
-						{#if resource.category}
+						{#if data.resource.category}
 							<div>
 								<dt class="text-sm font-medium text-gray-500">Category</dt>
-								<dd class="text-sm text-gray-900">{resource.category}</dd>
+								<dd class="text-sm text-gray-900">{data.resource.category}</dd>
 							</div>
 						{/if}
-						{#if resource.type === 'machine'}
+						{#if data.resource.type === 'machine'}
 							<div>
 								<dt class="text-sm font-medium text-gray-500">Card Required During Use</dt>
-								<dd class="text-sm text-gray-900">{resource.require_card_present ? 'Yes' : 'No'}</dd>
+								<dd class="text-sm text-gray-900">{data.resource.require_card_present ? 'Yes' : 'No'}</dd>
 							</div>
 						{/if}
 						<div>
 							<dt class="text-sm font-medium text-gray-500">Created</dt>
-							<dd class="text-sm text-gray-900">{formatDateTime(resource.created_at)}</dd>
+							<dd class="text-sm text-gray-900">{formatDateTime(data.resource.created_at)}</dd>
 						</div>
-						{#if resource.updated_at}
+						{#if data.resource.updated_at}
 							<div>
 								<dt class="text-sm font-medium text-gray-500">Last Updated</dt>
-								<dd class="text-sm text-gray-900">{formatDateTime(resource.updated_at)}</dd>
+								<dd class="text-sm text-gray-900">{formatDateTime(data.resource.updated_at)}</dd>
 							</div>
 						{/if}
 					</dl>
@@ -317,12 +317,12 @@
 			</div>
 
 			<!-- Maintenance Info (for machines) -->
-			{#if resource.type === 'machine'}
+			{#if data.resource.type === 'machine'}
 				<div class="lg:col-span-2">
 					<div class="bg-white rounded-lg shadow border p-6">
 						<h3 class="text-lg font-semibold text-gray-900 mb-4">Maintenance Tracking</h3>
 						
-						{#if maintenanceIntervals.length === 0}
+						{#if data.maintenanceIntervals.length === 0}
 							<div class="text-center py-8 text-gray-500">
 								<p>No maintenance intervals configured.</p>
 								<button 
@@ -344,7 +344,7 @@
 							</div>
 							
 							<div class="space-y-4">
-								{#each maintenanceIntervals as interval}
+								{#each data.maintenanceIntervals as interval}
 									<div class="border rounded-lg p-4">
 										<div class="flex justify-between items-start mb-2">
 											<h4 class="font-medium text-gray-900">{interval.name}</h4>
@@ -397,7 +397,7 @@
 					</div>
 				</div>
 			{:else}
-				{@const stats = getUsageStats(accessLogs)}
+				{@const stats = getUsageStats(data.accessLogs)}
 				<!-- Door usage stats -->
 				<div class="lg:col-span-2">
 					<div class="bg-white rounded-lg shadow border p-6">
@@ -430,13 +430,13 @@
 					<div class="bg-white rounded-lg shadow border p-6">
 						<h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Access</h3>
 						
-						{#if accessLogs.length === 0}
+						{#if data.accessLogs.length === 0}
 							<div class="text-center py-8 text-gray-500">
 								<p>No recent access logs.</p>
 							</div>
 						{:else}
 							<div class="space-y-3 max-h-80 overflow-y-auto">
-								{#each accessLogs as log}
+								{#each data.accessLogs as log}
 									<div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
 										<div>
 											<p class="text-sm font-medium text-gray-900">{log.user_name || `User ${log.user_id}`}</p>
@@ -458,14 +458,14 @@
 				</div>
 
 				<!-- Recent Maintenance (for machines) -->
-				{#if resource.type === 'machine'}
+				{#if data.resource.type === 'machine'}
 					<div class="lg:col-span-2">
 						<div class="bg-white rounded-lg shadow border p-6">
 							<div class="flex justify-between items-center mb-4">
 								<h3 class="text-lg font-semibold text-gray-900">Recent Maintenance</h3>
-								{#if maintenanceEvents.length > 0}
+								{#if data.maintenanceEvents.length > 0}
 									<a 
-										href="/resources/{resource.resource_id}/maintenance" 
+										href="/maintenance/logs?resource={data.resource.id}" 
 										class="text-blue-600 hover:text-blue-800 text-sm font-medium"
 									>
 										View All →
@@ -473,13 +473,13 @@
 								{/if}
 							</div>
 							
-							{#if maintenanceEvents.length === 0}
+							{#if data.maintenanceEvents.length === 0}
 								<div class="text-center py-8 text-gray-500">
 									<p>No maintenance events recorded.</p>
 								</div>
 							{:else}
 								<div class="space-y-4 max-h-80 overflow-y-auto">
-									{#each maintenanceEvents.slice(0, 5) as event}
+									{#each data.maintenanceEvents.slice(0, 5) as event}
 										<div class="border rounded-lg p-3 bg-gray-50">
 											<div class="flex justify-between items-start mb-2">
 												<div class="flex-1">
@@ -513,10 +513,10 @@
 									{/each}
 								</div>
 								<div class="mt-3 text-xs text-gray-400 text-center">
-									{#if maintenanceEvents.length > 5}
-										Showing 5 of {maintenanceEvents.length} maintenance events
+									{#if data.maintenanceEvents.length > 5}
+										Showing 5 of {data.maintenanceEvents.length} maintenance events
 									{:else}
-										{maintenanceEvents.length} maintenance event{maintenanceEvents.length === 1 ? '' : 's'}
+										{data.maintenanceEvents.length} maintenance event{data.maintenanceEvents.length === 1 ? '' : 's'}
 									{/if}
 								</div>
 							{/if}
@@ -531,15 +531,15 @@
 							<div class="space-y-4">
 								<div class="flex justify-between">
 									<span class="text-sm text-gray-600">Total Access Attempts:</span>
-									<span class="text-sm font-medium text-gray-900">{accessLogs.length}</span>
+									<span class="text-sm font-medium text-gray-900">{data.accessLogs.length}</span>
 								</div>
 								<div class="flex justify-between">
 									<span class="text-sm text-gray-600">Successful Access:</span>
-									<span class="text-sm font-medium text-green-600">{accessLogs.filter(log => log.access_granted).length}</span>
+									<span class="text-sm font-medium text-green-600">{data.accessLogs.filter(log => log.access_granted).length}</span>
 								</div>
 								<div class="flex justify-between">
 									<span class="text-sm text-gray-600">Denied Access:</span>
-									<span class="text-sm font-medium text-red-600">{accessLogs.filter(log => !log.access_granted).length}</span>
+									<span class="text-sm font-medium text-red-600">{data.accessLogs.filter(log => !log.access_granted).length}</span>
 								</div>
 							</div>
 						</div>
@@ -554,7 +554,18 @@
 {#if showAddModal}
 	<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" role="dialog" tabindex="-1" on:click={closeModals} on:keydown={(e) => e.key === 'Escape' && closeModals()}>
 		<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" role="dialog" tabindex="0" on:click|stopPropagation on:keydown|stopPropagation>
-			<form method="POST" action="?/createMaintenanceInterval" use:enhance on:submit={closeModals}>
+			<form 
+				method="POST" 
+				action="?/createMaintenanceInterval" 
+				use:enhance={({ formElement }) => {
+					return async ({ result, update }) => {
+						if (result.type === 'success') {
+							closeModals();
+						}
+						await update();
+					};
+				}}
+			>
 				<h3 class="text-lg font-medium text-gray-900 mb-4">Add Maintenance Interval</h3>
 				
 				<div class="space-y-4">
@@ -665,7 +676,18 @@
 {#if showEditModal && editingInterval}
 	<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" role="dialog" tabindex="-1" on:click={closeModals} on:keydown={(e) => e.key === 'Escape' && closeModals()}>
 		<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" role="dialog" tabindex="0" on:click|stopPropagation on:keydown|stopPropagation>
-			<form method="POST" action="?/updateMaintenanceInterval" use:enhance on:submit={closeModals}>
+			<form 
+				method="POST" 
+				action="?/updateMaintenanceInterval" 
+				use:enhance={({ formElement }) => {
+					return async ({ result, update }) => {
+						if (result.type === 'success') {
+							closeModals();
+						}
+						await update();
+					};
+				}}
+			>
 				<input type="hidden" name="id" value={editingInterval.id} />
 				
 				<h3 class="text-lg font-medium text-gray-900 mb-4">Edit Maintenance Interval</h3>
@@ -754,19 +776,21 @@
 				<div class="flex justify-between mt-6">
 					<button
 						type="button"
-						on:click={() => {
+						on:click={async () => {
 							if (confirm('Are you sure you want to delete this maintenance interval?')) {
-								const form = document.createElement('form');
-								form.method = 'POST';
-								form.action = '?/deleteMaintenanceInterval';
-								const input = document.createElement('input');
-								input.type = 'hidden';
-								input.name = 'id';
-								input.value = editingInterval.id;
-								form.appendChild(input);
-								document.body.appendChild(form);
-								form.submit();
-								closeModals();
+								const formData = new FormData();
+								formData.append('id', editingInterval.id);
+								
+								const response = await fetch('?/deleteMaintenanceInterval', {
+									method: 'POST',
+									body: formData
+								});
+								
+								if (response.ok) {
+									closeModals();
+									// Force a page reload to refresh all data
+									location.reload();
+								}
 							}
 						}}
 						class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"

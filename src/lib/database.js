@@ -588,8 +588,8 @@ export const maintenanceDb = {
 					WHERE resource_id = ? AND interval_id = ?
 				`).get(resourceId, interval.id);
 				
-				const referenceDate = lastMaintenance.last_maintenance || 
-					db.prepare('SELECT created_at FROM resources WHERE id = ?').get(resourceId).created_at;
+				// Use interval creation date as reference if no maintenance has been performed
+				const referenceDate = lastMaintenance.last_maintenance || interval.created_at;
 				
 				// Use UTC for consistent timezone handling
 				const now = new Date();
@@ -676,6 +676,58 @@ export const maintenanceDb = {
 		});
 		
 		return alerts;
+	},
+
+	getAllMaintenanceLogs(filters = {}) {
+		const db = getDb();
+		const { limit = 50, resourceId, userId, maintenanceType, startDate, endDate } = filters;
+		
+		let query = `
+			SELECT 
+				me.*,
+				r.name as resource_name,
+				r.resource_id as resource_code,
+				r.category as resource_category,
+				u.name as performed_by_name,
+				mi.name as interval_name
+			FROM maintenance_events me
+			LEFT JOIN resources r ON me.resource_id = r.id
+			LEFT JOIN users u ON me.performed_by = u.id
+			LEFT JOIN maintenance_intervals mi ON me.interval_id = mi.id
+			WHERE 1=1
+		`;
+		
+		const params = [];
+		
+		if (resourceId) {
+			query += ' AND me.resource_id = ?';
+			params.push(resourceId);
+		}
+		
+		if (userId) {
+			query += ' AND me.performed_by = ?';
+			params.push(userId);
+		}
+		
+		if (maintenanceType) {
+			query += ' AND me.maintenance_type = ?';
+			params.push(maintenanceType);
+		}
+		
+		if (startDate) {
+			query += ' AND me.maintenance_date >= ?';
+			params.push(startDate);
+		}
+		
+		if (endDate) {
+			query += ' AND me.maintenance_date <= ?';
+			params.push(endDate);
+		}
+		
+		query += ' ORDER BY me.maintenance_date DESC LIMIT ?';
+		params.push(limit);
+		
+		return db.prepare(query).all(...params);
 	}
 };
 

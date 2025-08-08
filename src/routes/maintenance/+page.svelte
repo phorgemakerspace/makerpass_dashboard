@@ -344,17 +344,11 @@
 									
 									<!-- Action buttons -->
 									<div class="flex items-center justify-end space-x-2 sm:ml-4 pt-2 sm:pt-0">
-										<a
-											href="/resources/{task.resource.resource_id}/maintenance"
-											class="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded border border-blue-200 hover:border-blue-300 whitespace-nowrap"
-										>
-											View Logs
-										</a>
 										<button
 											on:click={() => openLogMaintenanceModal(task.resource, task)}
 											class="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded whitespace-nowrap"
 										>
-											Log Maintenance
+											Complete Task
 										</button>
 									</div>
 								</div>
@@ -363,6 +357,83 @@
 					</div>
 				</div>
 			{/if}
+
+			<!-- Recent Maintenance Logs Section -->
+			<div class="mt-12 pt-8 border-t border-gray-200">
+				<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+					<h2 class="text-xl font-semibold text-gray-900">Recent Maintenance Activity</h2>
+					<a
+						href="/maintenance/logs"
+						class="text-blue-600 hover:text-blue-800 font-medium bg-transparent border-none cursor-pointer p-0 text-left sm:text-right"
+					>
+						View All Logs →
+					</a>
+				</div>
+
+				{#if data.recentLogs && data.recentLogs.length > 0}
+					<div class="bg-white rounded-lg shadow border overflow-hidden">
+						<div class="divide-y divide-gray-200">
+							{#each data.recentLogs.slice(0, 3) as log}
+								<div class="p-3 hover:bg-gray-50 transition-colors">
+									<div class="flex items-center justify-between">
+										<div class="flex-1 min-w-0">
+											<div class="flex items-center space-x-2 mb-1">
+												<!-- Maintenance Type Badge -->
+												<span class="text-xs px-2 py-1 rounded-full font-medium
+													{log.maintenance_type === 'emergency' ? 'bg-red-100 text-red-700' :
+													log.maintenance_type === 'repair' ? 'bg-orange-100 text-orange-700' :
+													log.maintenance_type === 'preventive' ? 'bg-blue-100 text-blue-700' :
+													'bg-green-100 text-green-700'}
+												">
+													{log.maintenance_type.charAt(0).toUpperCase() + log.maintenance_type.slice(1)}
+												</span>
+												
+												<h3 class="text-sm font-medium text-gray-900 truncate">
+													<a href="/resources/{log.resource_code}" class="hover:text-blue-600">
+														{log.resource_name}
+													</a>
+												</h3>
+												<span class="text-xs text-gray-500">({log.resource_category})</span>
+												{#if log.interval_name}
+													<span class="text-xs text-gray-400">• {log.interval_name}</span>
+												{/if}
+											</div>
+											
+											<p class="text-sm text-gray-600 mb-1 line-clamp-1">{log.notes}</p>
+											
+											<div class="flex items-center space-x-3 text-xs text-gray-500">
+												<span>
+													{formatDateTime(log.maintenance_date)}
+												</span>
+												{#if log.performed_by_name}
+													<span>by {log.performed_by_name}</span>
+												{:else}
+													<span>by Admin</span>
+												{/if}
+											</div>
+										</div>
+									</div>
+								</div>
+							{/each}
+						</div>
+						<div class="px-3 py-2 bg-gray-50 text-center">
+							<p class="text-xs text-gray-500">
+								Showing 3 most recent logs
+							</p>
+						</div>
+					</div>
+				{:else}
+					<div class="bg-white rounded-lg shadow border p-8 text-center">
+						<div class="text-gray-400 mb-4">
+							<svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+							</svg>
+						</div>
+						<p class="text-lg text-gray-500 mb-2">No maintenance logs yet</p>
+						<p class="text-sm text-gray-400">Log your first maintenance activity to see it here</p>
+					</div>
+				{/if}
+			</div>
 		{/if}
 	</div>
 </div>
