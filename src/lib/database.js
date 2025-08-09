@@ -108,6 +108,7 @@ function initializeDatabase() {
 			logo_font_color TEXT DEFAULT '#ffffff',
 			access_log_retention_days INTEGER DEFAULT 90,
 			maintenance_log_retention_days INTEGER DEFAULT 180,
+			maintenance_threshold INTEGER DEFAULT 75,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);
 
@@ -144,6 +145,13 @@ function initializeDatabase() {
 	
 	try {
 		db.prepare("ALTER TABLE resources ADD COLUMN connection_status TEXT DEFAULT 'offline'").run();
+	} catch (error) {
+		// Column already exists, ignore the error
+	}
+
+	// Add maintenance_threshold column to existing admin table if it doesn't exist
+	try {
+		db.prepare("ALTER TABLE admin ADD COLUMN maintenance_threshold INTEGER DEFAULT 75").run();
 	} catch (error) {
 		// Column already exists, ignore the error
 	}
@@ -1075,6 +1083,21 @@ export const adminDb = {
 			accessLogRetentionDays: admin?.access_log_retention_days || 90,
 			maintenanceLogRetentionDays: admin?.maintenance_log_retention_days || 180
 		};
+	},
+
+	// Maintenance threshold settings
+	getMaintenanceThreshold() {
+		const db = getDb();
+		const admin = db.prepare('SELECT maintenance_threshold FROM admin LIMIT 1').get();
+		return admin?.maintenance_threshold || 75;
+	},
+
+	updateMaintenanceThreshold(id, threshold) {
+		const db = getDb();
+		const stmt = db.prepare(`
+			UPDATE admin SET maintenance_threshold = ? WHERE id = ?
+		`);
+		return stmt.run(threshold, id);
 	},
 
 	// Cleanup functions

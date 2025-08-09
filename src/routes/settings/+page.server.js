@@ -4,6 +4,7 @@ import { adminDb } from '$lib/database.js';
 export async function load() {
 	const admin = adminDb.getAdmin();
 	const retentionSettings = adminDb.getRetentionSettings();
+	const maintenanceThreshold = adminDb.getMaintenanceThreshold();
 	const dataStats = adminDb.getDataStatistics();
 	
 	return {
@@ -16,6 +17,7 @@ export async function load() {
 		logoFontColor: admin.logo_font_color || '#ffffff',
 		accessLogRetentionDays: retentionSettings.accessLogRetentionDays,
 		maintenanceLogRetentionDays: retentionSettings.maintenanceLogRetentionDays,
+		maintenanceThreshold: maintenanceThreshold,
 		dataStatistics: dataStats
 	};
 }
@@ -151,6 +153,28 @@ export const actions = {
 		} catch (error) {
 			console.error('Update retention settings error:', error);
 			return fail(500, { error: 'Failed to update retention settings' });
+		}
+	},
+
+	updateMaintenanceThreshold: async ({ request }) => {
+		const data = await request.formData();
+		const threshold = parseInt(data.get('maintenance_threshold'));
+		const adminId = data.get('admin_id');
+
+		if (!adminId || isNaN(threshold)) {
+			return fail(400, { error: 'Valid maintenance threshold and admin ID are required' });
+		}
+
+		if (threshold < 1 || threshold > 100) {
+			return fail(400, { error: 'Maintenance threshold must be between 1 and 100 percent' });
+		}
+
+		try {
+			adminDb.updateMaintenanceThreshold(adminId, threshold);
+			return { success: true, message: 'Maintenance threshold updated successfully' };
+		} catch (error) {
+			console.error('Update maintenance threshold error:', error);
+			return fail(500, { error: 'Failed to update maintenance threshold' });
 		}
 	},
 

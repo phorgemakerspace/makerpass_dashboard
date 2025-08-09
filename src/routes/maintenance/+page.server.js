@@ -1,8 +1,11 @@
-import { resourceDb, maintenanceDb } from '$lib/database.js';
+import { resourceDb, maintenanceDb, adminDb } from '$lib/database.js';
 import { fail } from '@sveltejs/kit';
 
 export async function load() {
 	const resources = resourceDb.getAll().filter(r => r.type === 'machine');
+	
+	// Get maintenance threshold setting
+	const maintenanceThreshold = adminDb.getMaintenanceThreshold();
 	
 	// Get maintenance intervals for all machines
 	const maintenanceData = [];
@@ -33,7 +36,10 @@ export async function load() {
 	
 	return {
 		maintenanceData,
-		recentLogs: maintenanceDb.getAllMaintenanceLogs({ limit: 5 })
+		recentLogs: maintenanceDb.getAllMaintenanceLogs({ limit: 5 }),
+		settings: {
+			maintenance_threshold: maintenanceThreshold
+		}
 	};
 }
 

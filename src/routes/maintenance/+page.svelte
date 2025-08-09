@@ -210,7 +210,9 @@
 			</div>
 		{:else}
 			<!-- Summary stats -->
-			{@const allIntervals = data.maintenanceData.flatMap(d => d.intervals)}
+			{@const allIntervals = data.maintenanceData.flatMap(({ resource, intervals }) => 
+				intervals.map(interval => ({ ...interval, resource }))
+			)}
 			{@const overdueCount = allIntervals.filter(i => i.isOverdue).length}
 			{@const warningCount = allIntervals.filter(i => !i.isOverdue && i.progress >= 80).length}
 			{@const upToDateCount = allIntervals.filter(i => !i.isOverdue && i.progress < 80).length}
@@ -247,10 +249,8 @@
 			</div>
 
 			<!-- Maintenance Tasks List -->
-			{@const allTasks = data.maintenanceData
-				.flatMap(({ resource, intervals }) => 
-					intervals.map(interval => ({ ...interval, resource }))
-				)
+			{@const allTasks = allIntervals
+				.filter(task => task.progress >= (data.settings?.maintenance_threshold || 75))
 				.sort((a, b) => {
 					// Sort by priority: overdue first, then by progress percentage (highest first)
 					if (a.isOverdue && !b.isOverdue) return -1;
@@ -271,11 +271,20 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
 						</svg>
 					</div>
-					<p class="text-lg text-gray-500 mb-2">No maintenance intervals configured</p>
-					<p class="text-sm text-gray-400 mb-4">Add maintenance intervals to machines to track upcoming tasks</p>
-					<a href="/resources" class="text-blue-600 hover:text-blue-800 font-medium">
-						Go to Resources →
-					</a>
+					{#if allIntervals.length === 0}
+						<p class="text-lg text-gray-500 mb-2">No maintenance intervals configured</p>
+						<p class="text-sm text-gray-400 mb-4">Add maintenance intervals to machines to track upcoming tasks</p>
+						<a href="/resources" class="text-blue-600 hover:text-blue-800 font-medium">
+							Go to Resources →
+						</a>
+					{:else}
+						<p class="text-lg text-gray-500 mb-2">All caught up!</p>
+						<p class="text-sm text-gray-400 mb-4">No maintenance tasks above {data.settings?.maintenance_threshold || 75}% completion threshold</p>
+						<div class="text-xs text-gray-500">
+							<p>Showing tasks at {data.settings?.maintenance_threshold || 75}% or higher progress.</p>
+							<p>Adjust the threshold in <a href="/settings" class="text-blue-600 hover:text-blue-800">Settings</a> to see more tasks.</p>
+						</div>
+					{/if}
 				</div>
 			{:else}
 				<div class="bg-white rounded-lg shadow border overflow-hidden">

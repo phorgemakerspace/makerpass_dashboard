@@ -314,6 +314,38 @@
 						{/if}
 					</dl>
 				</div>
+				
+				<!-- Recent Access -->
+				<div class="mt-6">
+					<div class="bg-white rounded-lg shadow border p-6">
+						<h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Access</h3>
+						
+						{#if data.accessLogs.length === 0}
+							<div class="text-center py-8 text-gray-500">
+								<p>No recent access logs.</p>
+							</div>
+						{:else}
+							<div class="space-y-3 max-h-80 overflow-y-auto">
+								{#each data.accessLogs as log}
+									<div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+										<div>
+											<p class="text-sm font-medium text-gray-900">{log.user_name || `User ${log.user_id}`}</p>
+											<p class="text-xs text-gray-500">{formatDateTime(log.access_time)}</p>
+										</div>
+										<div class="text-right">
+											<span class="text-xs px-2 py-1 rounded-full {log.access_granted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+												{log.access_granted ? 'Granted' : 'Denied'}
+											</span>
+											{#if log.usage_minutes}
+												<p class="text-xs text-gray-500 mt-1">{formatDuration(log.usage_minutes)}</p>
+											{/if}
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</div>
 			</div>
 
 			<!-- Maintenance Info (for machines) -->
@@ -395,6 +427,69 @@
 							</div>
 						{/if}
 					</div>
+					
+					<!-- Recent Maintenance -->
+					<div class="mt-6 bg-white rounded-lg shadow border p-6">
+						<div class="flex justify-between items-center mb-4">
+							<h3 class="text-lg font-semibold text-gray-900">Recent Maintenance</h3>
+							{#if data.maintenanceEvents.length > 0}
+								<a 
+									href="/maintenance/logs?resource={data.resource.id}" 
+									class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+								>
+									View All →
+								</a>
+							{/if}
+						</div>
+						
+						{#if data.maintenanceEvents.length === 0}
+							<div class="text-center py-8 text-gray-500">
+								<p>No maintenance events recorded.</p>
+							</div>
+						{:else}
+							<div class="space-y-4 max-h-80 overflow-y-auto">
+								{#each data.maintenanceEvents.slice(0, 5) as event}
+									<div class="border rounded-lg p-3 bg-gray-50">
+										<div class="flex justify-between items-start mb-2">
+											<div class="flex-1">
+												<div class="flex items-center space-x-2">
+													<h4 class="text-sm font-medium text-gray-900">
+														{event.interval_name || 'General Maintenance'}
+													</h4>
+													<span class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 capitalize">
+														{event.maintenance_type}
+													</span>
+												</div>
+												<p class="text-xs text-gray-500 mt-1">
+													{formatDateTime(event.maintenance_date)}
+												</p>
+											</div>
+										</div>
+										
+										{#if event.performed_by_name}
+											<div class="mb-2">
+												<span class="text-xs text-gray-500">Performed by:</span>
+												<span class="text-xs text-gray-700 font-medium ml-1">{event.performed_by_name}</span>
+											</div>
+										{/if}
+										
+										{#if event.notes}
+											<div class="bg-white rounded p-2 border">
+												<p class="text-xs text-gray-600 leading-relaxed">{event.notes}</p>
+											</div>
+										{/if}
+									</div>
+								{/each}
+							</div>
+							<div class="mt-3 text-xs text-gray-400 text-center">
+								{#if data.maintenanceEvents.length > 5}
+									Showing 5 of {data.maintenanceEvents.length} maintenance events
+								{:else}
+									{data.maintenanceEvents.length} maintenance event{data.maintenanceEvents.length === 1 ? '' : 's'}
+								{/if}
+							</div>
+						{/if}
+					</div>
 				</div>
 			{:else}
 				{@const stats = getUsageStats(data.accessLogs)}
@@ -418,134 +513,28 @@
 							</div>
 						</div>
 					</div>
+					
+					<!-- Access Statistics -->
+					<div class="mt-6 bg-white rounded-lg shadow border p-6">
+						<h3 class="text-lg font-semibold text-gray-900 mb-4">Access Statistics</h3>
+						
+						<div class="space-y-4">
+							<div class="flex justify-between">
+								<span class="text-sm text-gray-600">Total Access Attempts:</span>
+								<span class="text-sm font-medium text-gray-900">{data.accessLogs.length}</span>
+							</div>
+							<div class="flex justify-between">
+								<span class="text-sm text-gray-600">Successful Access:</span>
+								<span class="text-sm font-medium text-green-600">{data.accessLogs.filter(log => log.access_granted).length}</span>
+							</div>
+							<div class="flex justify-between">
+								<span class="text-sm text-gray-600">Denied Access:</span>
+								<span class="text-sm font-medium text-red-600">{data.accessLogs.filter(log => !log.access_granted).length}</span>
+							</div>
+						</div>
+					</div>
 				</div>
 			{/if}
-		</div>
-
-		<!-- Recent Activity -->
-		<div class="mt-6">
-			<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-				<!-- Recent Access -->
-				<div class="lg:col-span-1">
-					<div class="bg-white rounded-lg shadow border p-6">
-						<h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Access</h3>
-						
-						{#if data.accessLogs.length === 0}
-							<div class="text-center py-8 text-gray-500">
-								<p>No recent access logs.</p>
-							</div>
-						{:else}
-							<div class="space-y-3 max-h-80 overflow-y-auto">
-								{#each data.accessLogs as log}
-									<div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-										<div>
-											<p class="text-sm font-medium text-gray-900">{log.user_name || `User ${log.user_id}`}</p>
-											<p class="text-xs text-gray-500">{formatDateTime(log.access_time)}</p>
-										</div>
-										<div class="text-right">
-											<span class="text-xs px-2 py-1 rounded-full {log.access_granted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-												{log.access_granted ? 'Granted' : 'Denied'}
-											</span>
-											{#if log.usage_minutes}
-												<p class="text-xs text-gray-500 mt-1">{formatDuration(log.usage_minutes)}</p>
-											{/if}
-										</div>
-									</div>
-								{/each}
-							</div>
-						{/if}
-					</div>
-				</div>
-
-				<!-- Recent Maintenance (for machines) -->
-				{#if data.resource.type === 'machine'}
-					<div class="lg:col-span-2">
-						<div class="bg-white rounded-lg shadow border p-6">
-							<div class="flex justify-between items-center mb-4">
-								<h3 class="text-lg font-semibold text-gray-900">Recent Maintenance</h3>
-								{#if data.maintenanceEvents.length > 0}
-									<a 
-										href="/maintenance/logs?resource={data.resource.id}" 
-										class="text-blue-600 hover:text-blue-800 text-sm font-medium"
-									>
-										View All →
-									</a>
-								{/if}
-							</div>
-							
-							{#if data.maintenanceEvents.length === 0}
-								<div class="text-center py-8 text-gray-500">
-									<p>No maintenance events recorded.</p>
-								</div>
-							{:else}
-								<div class="space-y-4 max-h-80 overflow-y-auto">
-									{#each data.maintenanceEvents.slice(0, 5) as event}
-										<div class="border rounded-lg p-3 bg-gray-50">
-											<div class="flex justify-between items-start mb-2">
-												<div class="flex-1">
-													<div class="flex items-center space-x-2">
-														<h4 class="text-sm font-medium text-gray-900">
-															{event.interval_name || 'General Maintenance'}
-														</h4>
-														<span class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 capitalize">
-															{event.maintenance_type}
-														</span>
-													</div>
-													<p class="text-xs text-gray-500 mt-1">
-														{formatDateTime(event.maintenance_date)}
-													</p>
-												</div>
-											</div>
-											
-											{#if event.performed_by_name}
-												<div class="mb-2">
-													<span class="text-xs text-gray-500">Performed by:</span>
-													<span class="text-xs text-gray-700 font-medium ml-1">{event.performed_by_name}</span>
-												</div>
-											{/if}
-											
-											{#if event.notes}
-												<div class="bg-white rounded p-2 border">
-													<p class="text-xs text-gray-600 leading-relaxed">{event.notes}</p>
-												</div>
-											{/if}
-										</div>
-									{/each}
-								</div>
-								<div class="mt-3 text-xs text-gray-400 text-center">
-									{#if data.maintenanceEvents.length > 5}
-										Showing 5 of {data.maintenanceEvents.length} maintenance events
-									{:else}
-										{data.maintenanceEvents.length} maintenance event{data.maintenanceEvents.length === 1 ? '' : 's'}
-									{/if}
-								</div>
-							{/if}
-						</div>
-					</div>
-				{:else}
-					<!-- Door statistics -->
-					<div class="lg:col-span-2">
-						<div class="bg-white rounded-lg shadow border p-6">
-							<h3 class="text-lg font-semibold text-gray-900 mb-4">Access Statistics</h3>
-							
-							<div class="space-y-4">
-								<div class="flex justify-between">
-									<span class="text-sm text-gray-600">Total Access Attempts:</span>
-									<span class="text-sm font-medium text-gray-900">{data.accessLogs.length}</span>
-								</div>
-								<div class="flex justify-between">
-									<span class="text-sm text-gray-600">Successful Access:</span>
-									<span class="text-sm font-medium text-green-600">{data.accessLogs.filter(log => log.access_granted).length}</span>
-								</div>
-								<div class="flex justify-between">
-									<span class="text-sm text-gray-600">Denied Access:</span>
-									<span class="text-sm font-medium text-red-600">{data.accessLogs.filter(log => !log.access_granted).length}</span>
-								</div>
-							</div>
-						</div>
-					</div>
-				{/if}
-			</div>
 		</div>
 	</div>
 </div>
