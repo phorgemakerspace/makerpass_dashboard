@@ -61,15 +61,46 @@ The MakerPass system uses WebSocket connections for real-time communication with
 }
 ```
 
-#### Session End (for machines with usage tracking)
+**Possible Access Denied Reasons:**
+- `"Resource not found"` - Resource doesn't exist in system
+- `"Resource is currently disabled"` - Resource has been disabled by admin
+- `"Unknown RFID card"` - RFID not found in user database
+- `"User account is currently disabled"` - User account has been disabled by admin
+- `"Access not granted for this resource"` - User lacks permission for this resource
+
+#### Machine Sessions
+
+For machine resources, all access attempts use session-based tracking:
+
+**Receive (Session Started):**
+```json
+{
+  "type": "session_started",
+  "user": "John Doe",
+  "session_id": 12345
+}
+```
+
+**Receive (Session Ended):**
+```json
+{
+  "type": "session_ended", 
+  "user": "John Doe",
+  "session_id": 12345
+}
+```
+
+**Note:** The same user scanning their card on a machine will either start a new session (if none active) or end their current session (if one is active).
+
+#### Session End (External Triggers)
+
+Machines can send session end messages through various triggers:
 
 **Send:**
 ```json
 {
   "type": "session_end",
-  "device_id": "machine-001",
-  "session_id": "session_1234567890_abc123",
-  "usage_minutes": 45
+  "session_id": 12345
 }
 ```
 
@@ -77,9 +108,18 @@ The MakerPass system uses WebSocket connections for real-time communication with
 ```json
 {
   "type": "session_ended",
-  "session_id": "session_1234567890_abc123"
+  "resource_id": "machine-001",
+  "session_id": 12345
 }
 ```
+
+**Session End Triggers:**
+- **Card removal**: When `require_card_present: true` and RFID card is physically removed
+- **Machine toggle**: When machine power/control is manually toggled off
+- **Admin action**: Dashboard admin forcefully ending a session
+- **System events**: Safety shutdowns, scheduled maintenance, etc.
+
+**Note:** This message is sent by firmware when `require_card_present` is true and the card is removed, when machines are manually toggled off, or by admin systems to forcefully end sessions. The system automatically calculates usage time (session_end - session_start) for maintenance tracking purposes.
 
 #### Keep-Alive
 
@@ -128,9 +168,37 @@ Administrators can connect to the WebSocket to monitor real-time activity:
 
 Authenticated admins receive real-time notifications for:
 
-- Device connection/disconnection
-- Access attempts (granted/denied)
-- Session start/end events
+- Device connection/disconnection (`device_status`)
+- Access attempts for doors (`access_event`) 
+- Machine session starts (`session_started`)
+- Machine session ends (`session_ended`)
+
+**Example Admin Notifications:**
+```json
+{
+  "type": "device_status",
+  "resource_id": "door-001", 
+  "status": "online"
+}
+```
+
+```json
+{
+  "type": "access_event",
+  "resource_id": "door-001",
+  "user": "John Doe",
+  "success": true
+}
+```
+
+```json
+{
+  "type": "session_started",
+  "resource_id": "machine-001",
+  "user": "Jane Smith",
+  "session_id": 12345
+}
+```
 
 ### Error Handling
 
@@ -153,16 +221,55 @@ Authenticated admins receive real-time notifications for:
 ### Resource Types
 
 #### Doors
-- Simple access control
+- Simple access control with immediate `access_granted` response
 - No session tracking
-- No card-present requirement
+- Single log entry per access attempt
 
-#### Machines
-- Optional session tracking
-- Optional card-present requirement during use
-- Usage time tracking for maintenance
+#### Machines  
+- **All machines use session-based access control**
+- RFID scan either starts new session or ends current session
+- Session tracking for usage monitoring and maintenance
+- The `require_card_present` setting determines firmware behavior:
+  - `true`: Firmware monitors card presence and sends `session_end` when card removed
+  - `false`: Sessions managed manually via RFID scans or admin actions
 
-### Database Schema
+#### Access Control Flow
+
+**For Doors:**
+1. RFID scan → Access check → `access_granted` or `access_denied`
+2. Single log entry created
+
+**For Machines:**
+1. RFID scan → Access check → Session logic:
+   - No active session → Start new session → `session_started`
+   - Active session by same user → End session → `session_ended`
+2. Log entries track session start/end with user association
+3. **Usage time automatically calculated** (session_end - session_start) for maintenance tracking
+
+### Usage Tracking and Maintenance
+
+All machine sessions automatically track usage time, which is used for:
+- **Usage-based maintenance intervals** - Maintenance due after X hours of machine use
+- **Maintenance dashboard** - Real-time tracking of machine usage vs. maintenance schedules  
+- **Usage analytics** - Understanding machine utilization patterns
+
+**Automatic Usage Calculation:**
+- Session start time recorded when session begins
+- Session end time recorded when session ends (via RFID, card removal, or manual toggle)
+- Usage minutes = (session_end - session_start) automatically calculated and stored
+- Usage accumulated across all sessions for maintenance interval calculations
+
+#### Users Table
+```sql
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL, 
+    rfid TEXT UNIQUE NOT NULL,
+    enabled BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
 
 #### Resources Table
 ```sql
@@ -253,6 +360,12 @@ class MakerPassDevice {
             case 'access_denied':
                 this.handleAccessDenied(message);
                 break;
+            case 'session_started':
+                this.handleSessionStarted(message);
+                break;
+            case 'session_ended':
+                this.handleSessionEnded(message);
+                break;
         }
     }
 
@@ -269,7 +382,7 @@ class MakerPassDevice {
         }));
     }
 
-    endSession(sessionId, usageMinutes) {
+    endSession(sessionId) {
         if (!this.authenticated) {
             console.error('Device not authenticated');
             return;
@@ -277,22 +390,34 @@ class MakerPassDevice {
 
         this.ws.send(JSON.stringify({
             type: 'session_end',
-            device_id: this.deviceId,
-            session_id: sessionId,
-            usage_minutes: usageMinutes
+            session_id: sessionId
         }));
     }
 
     handleAccessGranted(message) {
-        console.log(`Access granted to ${message.user_name}`);
+        console.log(`Access granted to ${message.user}`);
         // Implement your device-specific access logic here
-        // e.g., unlock door, enable machine, etc.
+        // e.g., unlock door, flash green light, etc.
     }
 
     handleAccessDenied(message) {
         console.log(`Access denied: ${message.reason}`);
         // Implement your device-specific denial logic here
         // e.g., flash red light, display message, etc.
+    }
+
+    handleSessionStarted(message) {
+        console.log(`Session started for ${message.user}, session ID: ${message.session_id}`);
+        // Implement machine enablement logic
+        // e.g., enable machine controls, start monitoring, etc.
+        this.currentSessionId = message.session_id;
+    }
+
+    handleSessionEnded(message) {
+        console.log(`Session ended for ${message.user}, session ID: ${message.session_id}`);
+        // Implement machine disablement logic  
+        // e.g., disable machine controls, stop monitoring, etc.
+        this.currentSessionId = null;
     }
 }
 

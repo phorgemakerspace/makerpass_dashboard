@@ -19,13 +19,13 @@
 	$: inputClasses = `block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 text-sm ${
 		hasError 
 			? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-			: 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+			: 'border-gray-300 focus:ring-primary focus:border-primary'
 	} ${disabled ? 'bg-gray-50 cursor-not-allowed' : 'bg-white'}`;
 </script>
 
 <div class="space-y-1">
 	{#if label && !isCheckbox}
-		<label for={name} class="block text-sm font-medium text-gray-700 {required ? 'required' : ''}">
+		<label for={name} class="block text-sm font-medium text-gray-700">
 			{label}
 			{#if required}<span class="text-red-500 ml-1">*</span>{/if}
 		</label>
@@ -65,7 +65,7 @@
 				bind:checked={value}
 				{required}
 				{disabled}
-				class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+				class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
 			/>
 			{#if label}
 				<label for={name} class="ml-2 block text-sm text-gray-900">
@@ -95,10 +95,3 @@
 		<p class="text-sm text-red-600">{error}</p>
 	{/if}
 </div>
-
-<style>
-	.required::after {
-		content: " *";
-		color: #ef4444;
-	}
-</style>

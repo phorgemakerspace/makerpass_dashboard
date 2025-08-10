@@ -6,6 +6,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Toggle from '$lib/components/Toggle.svelte';
+	import FormField from '$lib/components/FormField.svelte';
 	
 	export let data;
 	export let form;
@@ -338,59 +339,43 @@
 <Modal isOpen={showAddModal} title="Add New Resource" on:close={closeModals}>
 	<form id="add-resource-form" method="POST" action="?/create" use:enhance on:submit={closeModals}>
 		<div class="space-y-4">
-			<div>
-				<label for="name" class="block text-sm font-medium text-gray-700">Name</label>
-				<input
-					type="text"
-					id="name"
-					name="name"
-					bind:value={newResource.name}
-					required
-					class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm"
-				/>
-			</div>
+			<FormField
+				label="Name"
+				name="name"
+				type="text"
+				bind:value={newResource.name}
+				required
+			/>
 			
-			<div>
-				<label for="type" class="block text-sm font-medium text-gray-700">Type</label>
-				<select
-					id="type"
-					name="type"
-					bind:value={newResource.type}
-					class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm"
-				>
-					<option value="door">Door</option>
-					<option value="machine">Machine</option>
-				</select>
-			</div>
+			<FormField
+				label="Type"
+				name="type"
+				type="select"
+				bind:value={newResource.type}
+				options={[
+					{ value: 'door', label: 'Door' },
+					{ value: 'machine', label: 'Machine' }
+				]}
+				required
+			/>
 			
 			{#if newResource.type === 'machine'}
-				<div>
-					<label for="category" class="block text-sm font-medium text-gray-700">Category</label>
-					<select
-						id="category"
-						name="category"
-						bind:value={newResource.category}
-						class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm"
-					>
-						<option value="">Select category...</option>
-						{#each machineCategories as category}
-							<option value={category}>{category}</option>
-						{/each}
-					</select>
-				</div>
+				<FormField
+					label="Category"
+					name="category"
+					type="select"
+					bind:value={newResource.category}
+					placeholder="Select category..."
+					options={machineCategories.map(cat => ({ value: cat, label: cat }))}
+					required
+				/>
 				
-				<div class="flex items-center">
-					<input
-						type="checkbox"
-						id="require_card_present"
-						name="require_card_present"
-						bind:checked={newResource.require_card_present}
-						class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-					/>
-					<label for="require_card_present" class="ml-2 block text-sm text-gray-900">
-						Require card present during use
-					</label>
-				</div>
+				<FormField
+					label="Require card present during use"
+					name="require_card_present"
+					type="checkbox"
+					bind:value={newResource.require_card_present}
+				/>
 			{/if}
 		</div>
 	</form>
@@ -412,59 +397,41 @@
 			<input type="hidden" name="id" value={editingResource.id} />
 			
 			<div class="space-y-4">
-				<div>
-					<label for="edit_name" class="block text-sm font-medium text-gray-700">Name</label>
-					<input
-						type="text"
-						id="edit_name"
-						name="name"
-						bind:value={editingResource.name}
-						required
-						class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm"
+				<FormField
+					label="Name"
+					name="name"
+					type="text"
+					bind:value={editingResource.name}
+					required
+				/>
+				
+				<FormField
+					label="Type"
+					name="type"
+					type="select"
+					bind:value={editingResource.type}
+					options={[
+						{ value: 'door', label: 'Door' },
+						{ value: 'machine', label: 'Machine' }
+					]}
+					required
+				/>
+				
+			{#if editingResource.type === 'machine'}
+				<FormField
+					label="Category"
+					name="category"
+					type="select"
+					bind:value={editingResource.category}
+					placeholder="Select category..."
+					options={machineCategories.map(cat => ({ value: cat, label: cat }))}
+					required
+				/>					<FormField
+						label="Require card present during use"
+						name="require_card_present"
+						type="checkbox"
+						bind:value={editingResource.require_card_present}
 					/>
-				</div>
-				
-				<div>
-					<label for="edit_type" class="block text-sm font-medium text-gray-700">Type</label>
-					<select
-						id="edit_type"
-						name="type"
-						bind:value={editingResource.type}
-						class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm"
-					>
-						<option value="door">Door</option>
-						<option value="machine">Machine</option>
-					</select>
-				</div>
-				
-				{#if editingResource.type === 'machine'}
-					<div>
-						<label for="edit_category" class="block text-sm font-medium text-gray-700">Category</label>
-						<select
-							id="edit_category"
-							name="category"
-							bind:value={editingResource.category}
-							class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm"
-						>
-							<option value="">Select category...</option>
-							{#each machineCategories as category}
-								<option value={category}>{category}</option>
-							{/each}
-						</select>
-					</div>
-					
-					<div class="flex items-center">
-						<input
-							type="checkbox"
-							id="edit_require_card_present"
-							name="require_card_present"
-							bind:checked={editingResource.require_card_present}
-							class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-						/>
-						<label for="edit_require_card_present" class="ml-2 block text-sm text-gray-900">
-							Require card present during use
-						</label>
-					</div>
 				{/if}
 			</div>
 		</form>

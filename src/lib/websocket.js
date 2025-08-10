@@ -249,6 +249,23 @@ class RFIDWebSocketServer {
 			return;
 		}
 
+		// Check if user is enabled
+		if (!user.enabled) {
+			const log = logDb.create({
+				user_id: user.id,
+				resource_id: resource.id,
+				rfid: rfidCode,
+				success: false,
+				reason: 'User disabled'
+			});
+
+			ws.send(JSON.stringify({ 
+				type: 'access_denied', 
+				reason: 'User account is currently disabled' 
+			}));
+			return;
+		}
+
 		// Check permissions
 		const hasAccess = permissionDb.hasAccess(user.id, resource.id);
 		if (!hasAccess) {
@@ -270,7 +287,7 @@ class RFIDWebSocketServer {
 		// Check for active session (for machines that require card present)
 		const activeSession = logDb.getActiveSession(resource.id);
 		
-		if (resource.type === 'machine' && resource.require_card_present) {
+		if (resource.type === 'machine') {
 			if (activeSession) {
 				// Same user ending their own session = Session completed
 				logDb.endSession(activeSession.id, null, user.id);
@@ -305,15 +322,13 @@ class RFIDWebSocketServer {
 				});
 			}
 		} else {
-			// Simple access grant (doors or machines without card present requirement)
-			const reason = resource.type === 'machine' ? 'Session started' : 'Access granted';
-			
+			// Simple access grant for doors
 			const log = logDb.create({
 				user_id: user.id,
 				resource_id: resource.id,
 				rfid: rfidCode,
 				success: true,
-				reason: reason
+				reason: 'Access granted'
 			});
 
 			ws.send(JSON.stringify({ 
