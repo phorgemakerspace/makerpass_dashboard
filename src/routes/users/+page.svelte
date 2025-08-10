@@ -7,6 +7,7 @@
 
 	let showAddModal = false;
 	let editingUser = null;
+	let searchTerm = '';
 
 	function openAddModal() {
 		showAddModal = true;
@@ -82,6 +83,19 @@
 	function getResourceCount(permissions) {
 		return permissions.length;
 	}
+
+	// Filter users based on search term
+	$: filteredUsers = data.users.filter(user => 
+		user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+		user.email.toLowerCase().includes(searchTerm.toLowerCase())
+	);
+
+	// Debug logging
+	$: {
+		console.log('Stripe enabled:', data.stripeEnabled);
+		console.log('Sample user:', data.users[0]);
+		console.log('Users with customer_id:', data.users.filter(u => u.customer_id));
+	}
 </script>
 
 <svelte:head>
@@ -90,14 +104,34 @@
 
 <div class="px-4 py-6 sm:px-0">
 	<div class="border-4 border-dashed border-gray-200 rounded-lg p-4 sm:p-8">
-		<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8 space-y-4 sm:space-y-0">
-			<h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Users</h1>
+		<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 space-y-4 sm:space-y-0">
+			<div class="flex-1">
+				<h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Users</h1>
+				<p class="text-gray-600 mt-1">Manage user accounts and permissions</p>
+			</div>
 			<button
 				on:click={openAddModal}
-				class="btn-primary text-white px-4 py-2 rounded-md text-sm font-medium w-full sm:w-auto"
+				class="btn-primary text-white px-4 py-2 rounded-md text-sm font-medium"
 			>
 				Add User
 			</button>
+		</div>
+
+		<!-- Search Bar -->
+		<div class="mb-6">
+			<div class="relative">
+				<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+					<svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+					</svg>
+				</div>
+				<input
+					type="text"
+					bind:value={searchTerm}
+					placeholder="Search users by name or email..."
+					class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+				/>
+			</div>
 		</div>
 
 		{#if form?.error}
@@ -116,102 +150,140 @@
 			</div>
 		{/if}
 
-		<!-- Users Grid -->
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-			{#each data.users as user}
-				<div class="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-					<div class="p-4 sm:p-6">
-						<!-- User Header -->
-						<div class="flex items-start justify-between mb-3">
-							<div class="flex-1 min-w-0">
-								<h3 class="text-lg font-semibold text-gray-900 truncate">{user.name}</h3>
-								<p class="text-sm text-gray-500 truncate">{user.email}</p>
-							</div>
-							<div class="ml-2">
-								{#if true}
-									{@const status = getStatusBadge(user.enabled ?? true)}
-									<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {status.class}">
-										{status.text}
-									</span>
-								{/if}
-							</div>
-						</div>
-
-						<!-- RFID -->
-						<div class="mb-3">
-							<p class="text-sm text-gray-500">RFID</p>
-							<p class="text-sm font-mono text-gray-900 bg-gray-50 px-2 py-1 rounded">
-								{formatRfid(user.rfid)}
-							</p>
-						</div>
-
-						<!-- Resource Access -->
-						<div class="mb-4">
-							<p class="text-sm text-gray-500 mb-1">Resource Access</p>
-							{#if getResourceCount(user.permissions) > 0}
-								{@const resourceCount = getResourceCount(user.permissions)}
-								<div class="flex items-center text-sm">
-									<svg class="w-4 h-4 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
-										<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-									</svg>
-									<span class="text-green-700">{resourceCount} resource{resourceCount !== 1 ? 's' : ''}</span>
-								</div>
-							{:else}
-								<div class="flex items-center text-sm">
-									<svg class="w-4 h-4 text-red-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
-										<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-									</svg>
-									<span class="text-red-600">No access</span>
-								</div>
-							{/if}
-						</div>
-
-						<!-- Action Buttons -->
-						<div class="flex items-center space-x-2">
-							<button
-								on:click={() => viewUserDetails(user.id)}
-								class="flex-1 bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-							>
-								View Details
-							</button>
-							<button
-								on:click={() => toggleUserStatus(user.id, user.enabled ?? true)}
-								class="px-3 py-2 rounded-md text-sm font-medium transition-colors {user.enabled ?? true 
-									? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100' 
-									: 'bg-green-50 text-green-700 hover:bg-green-100'}"
-								title={user.enabled ?? true ? 'Disable User' : 'Enable User'}
-							>
-								{user.enabled ?? true ? 'Disable' : 'Enable'}
-							</button>
-							<button
-								on:click={() => confirmDelete(user.id, user.name)}
-								class="px-3 py-2 rounded-md text-sm font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-								title="Delete User"
-							>
-								Delete
-							</button>
-						</div>
+		<!-- Users List -->
+		<div class="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+			{#if filteredUsers.length === 0}
+				<div class="p-8 text-center">
+					<div class="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+						<svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+						</svg>
 					</div>
+					{#if searchTerm}
+						<h3 class="text-sm font-medium text-gray-900 mb-1">No users found</h3>
+						<p class="text-sm text-gray-500">Try adjusting your search criteria</p>
+					{:else}
+						<h3 class="text-sm font-medium text-gray-900 mb-1">No users yet</h3>
+						<p class="text-sm text-gray-500 mb-4">Get started by adding your first user</p>
+						<button
+							on:click={openAddModal}
+							class="btn-primary text-white px-4 py-2 rounded-md text-sm font-medium"
+						>
+							Add User
+						</button>
+					{/if}
 				</div>
 			{:else}
-				<div class="col-span-full">
-					<div class="text-center py-12">
-						<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 01-3 0m3 0V9a9 9 0 10-18 0v12.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 01-3 0" />
-						</svg>
-						<h3 class="mt-2 text-sm font-medium text-gray-900">No users</h3>
-						<p class="mt-1 text-sm text-gray-500">Get started by creating a new user.</p>
-						<div class="mt-6">
-							<button
-								on:click={openAddModal}
-								class="btn-primary text-white px-4 py-2 rounded-md text-sm font-medium"
-							>
-								Add First User
-							</button>
-						</div>
-					</div>
+				<div class="overflow-x-auto">
+					<table class="min-w-full divide-y divide-gray-200">
+						<thead class="bg-gray-50">
+							<tr>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+									User
+								</th>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+									RFID
+								</th>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+									Access
+								</th>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Status
+								</th>
+							</tr>
+						</thead>
+						<tbody class="bg-white divide-y divide-gray-200">
+							{#each filteredUsers as user (user.id)}
+								<tr class="hover:bg-gray-50 transition-colors">
+									<td class="px-6 py-4 whitespace-nowrap">
+										<div class="flex items-center">
+											<div class="relative">
+												<div class="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+													<span class="text-sm font-medium text-blue-800">
+														{user.name?.charAt(0).toUpperCase() || 'U'}
+													</span>
+												</div>
+												{#if data.stripeEnabled}
+													{#if user.customer_id}
+														<!-- Stripe user badge -->
+														<div class="absolute -top-1 -right-1 h-4 w-4 bg-purple-500 rounded-full flex items-center justify-center" title="Stripe Customer">
+															<svg class="h-2.5 w-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+																<path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+															</svg>
+														</div>
+													{:else}
+														<!-- Manual user badge -->
+														<div class="absolute -top-1 -right-1 h-4 w-4 bg-gray-500 rounded-full flex items-center justify-center" title="Manual User">
+															<svg class="h-2.5 w-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+																<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+															</svg>
+														</div>
+													{/if}
+												{/if}
+											</div>
+											<div class="ml-4">
+												<button 
+													on:click={() => viewUserDetails(user.id)}
+													class="text-left hover:text-blue-600 transition-colors"
+												>
+													<div class="flex items-center">
+														<div class="text-sm font-medium text-gray-900 hover:text-blue-600">
+															{user.name || 'Unknown User'}
+														</div>
+														{#if data.stripeEnabled && user.customer_id}
+															<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+																Stripe
+															</span>
+														{/if}
+													</div>
+													<div class="text-sm text-gray-500">{user.email}</div>
+												</button>
+											</div>
+										</div>
+									</td>
+									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
+										<span class="font-mono bg-gray-50 px-2 py-1 rounded">
+											{formatRfid(user.rfid)}
+										</span>
+									</td>
+									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 hidden md:table-cell">
+										{#if getResourceCount(user.permissions) > 0}
+											{@const resourceCount = getResourceCount(user.permissions)}
+											<div class="flex items-center">
+												<svg class="w-4 h-4 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+													<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+												</svg>
+												<span class="text-green-700">{resourceCount} resource{resourceCount !== 1 ? 's' : ''}</span>
+											</div>
+										{:else}
+											<div class="flex items-center">
+												<svg class="w-4 h-4 text-red-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+													<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+												</svg>
+												<span class="text-red-600">No access</span>
+											</div>
+										{/if}
+									</td>
+									<td class="px-6 py-4 whitespace-nowrap">
+										<label class="relative inline-flex items-center cursor-pointer">
+											<input
+												type="checkbox"
+												checked={user.enabled ?? true}
+												on:change={() => toggleUserStatus(user.id, user.enabled ?? true)}
+												class="sr-only peer"
+											/>
+											<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+											<span class="ml-3 text-sm font-medium text-gray-700">
+												{user.enabled ?? true ? 'Enabled' : 'Disabled'}
+											</span>
+										</label>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
 				</div>
-			{/each}
+			{/if}
 		</div>
 	</div>
 </div>

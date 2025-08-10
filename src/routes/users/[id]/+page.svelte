@@ -8,8 +8,43 @@
 	let editMode = false;
 	let showDeleteConfirm = false;
 
+	// Form field values
+	let formValues = {
+		name: '',
+		email: '',
+		rfid: '',
+		enabled: 'true',
+		address: ''
+	};
+
+	// Initialize form values from data
+	$: if (data.user) {
+		formValues = {
+			name: data.user.name,
+			email: data.user.email,
+			rfid: data.user.rfid,
+			enabled: data.user.enabled ? 'true' : 'false',
+			address: data.user.address || ''
+		};
+	}
+
+	// Exit edit mode on successful submission
+	$: if (form?.success) {
+		editMode = false;
+	}
+
 	function toggleEditMode() {
 		editMode = !editMode;
+		// Reset form values when entering edit mode
+		if (editMode && data.user) {
+			formValues = {
+				name: data.user.name,
+				email: data.user.email,
+				rfid: data.user.rfid,
+				enabled: data.user.enabled ? 'true' : 'false',
+				address: data.user.address || ''
+			};
+		}
 	}
 
 	function formatRfid(rfid) {
@@ -142,7 +177,7 @@
 											type="text"
 											id="name"
 											name="name"
-											value={data.user.name}
+											bind:value={formValues.name}
 											required
 											class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 										/>
@@ -153,7 +188,7 @@
 											type="email"
 											id="email"
 											name="email"
-											value={data.user.email}
+											bind:value={formValues.email}
 											required
 											class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 										/>
@@ -167,7 +202,7 @@
 											type="text"
 											id="rfid"
 											name="rfid"
-											value={data.user.rfid}
+											bind:value={formValues.rfid}
 											required
 											maxlength="8"
 											class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
@@ -178,10 +213,11 @@
 										<select
 											id="enabled"
 											name="enabled"
+											bind:value={formValues.enabled}
 											class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 										>
-											<option value="true" selected={data.user.enabled}>Active</option>
-											<option value="false" selected={!data.user.enabled}>Disabled</option>
+											<option value="true">Active</option>
+											<option value="false">Disabled</option>
 										</select>
 									</div>
 								</div>
@@ -192,10 +228,35 @@
 										id="address"
 										name="address"
 										rows="3"
-										value={data.user.address || ''}
+										bind:value={formValues.address}
 										class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 										placeholder="Enter address (optional)"
 									></textarea>
+								</div>
+
+								<!-- Resource Access within the form -->
+								<div>
+									<label class="block text-sm font-medium text-gray-700 mb-2">Resource Access</label>
+									<div class="space-y-3 max-h-64 overflow-y-auto border border-gray-200 rounded-md p-4">
+										{#each data.allResources as resource}
+											<label class="flex items-start space-x-3">
+												<input
+													type="checkbox"
+													name="resource_permissions"
+													value={resource.id}
+													checked={hasPermission(resource.id)}
+													class="mt-1 rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+												/>
+												<div class="min-w-0 flex-1">
+													<div class="text-sm font-medium text-gray-900">{resource.name}</div>
+													<div class="text-xs text-gray-500">{resource.type}</div>
+													{#if resource.description}
+														<div class="text-xs text-gray-400 mt-1">{resource.description}</div>
+													{/if}
+												</div>
+											</label>
+										{/each}
+									</div>
 								</div>
 
 								<div class="flex justify-end space-x-3">
@@ -329,62 +390,39 @@
 					</div>
 				{/if}
 
-				<!-- Resource Access -->
+				<!-- Resource Access (View Only) -->
 				<div class="bg-white rounded-lg shadow-sm border border-gray-200">
 					<div class="px-6 py-4 border-b border-gray-200">
-						<h2 class="text-lg font-semibold text-gray-900">Resource Access</h2>
+						<h2 class="text-lg font-semibold text-gray-900">Current Resource Access</h2>
 					</div>
 					<div class="p-6">
-						{#if editMode}
-							<div class="space-y-3 max-h-64 overflow-y-auto">
-								{#each data.allResources as resource}
-									<label class="flex items-start space-x-3">
-										<input
-											type="checkbox"
-											name="resource_permissions"
-											value={resource.id}
-											checked={hasPermission(resource.id)}
-											class="mt-1 rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-										/>
-										<div class="min-w-0 flex-1">
-											<div class="text-sm font-medium text-gray-900">{resource.name}</div>
-											<div class="text-xs text-gray-500">{resource.type}</div>
-											{#if resource.description}
-												<div class="text-xs text-gray-400 mt-1">{resource.description}</div>
-											{/if}
-										</div>
-									</label>
-								{/each}
-							</div>
-						{:else}
-							<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-								{#each data.user.permissions as permission}
-									<div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-										<div class="flex-shrink-0">
-											<div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-												<svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-													<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-												</svg>
-											</div>
-										</div>
-										<div class="min-w-0 flex-1">
-											<div class="text-sm font-medium text-gray-900">{permission.name}</div>
-											<div class="text-xs text-gray-500">{permission.type}</div>
-										</div>
-									</div>
-								{:else}
-									<div class="col-span-full text-center py-8">
-										<div class="text-gray-400">
-											<svg class="mx-auto h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+							{#each data.user.permissions as permission}
+								<div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+									<div class="flex-shrink-0">
+										<div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+											<svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+												<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
 											</svg>
 										</div>
-										<h3 class="text-sm font-medium text-gray-900">No Resource Access</h3>
-										<p class="text-sm text-gray-500">This user doesn't have access to any resources.</p>
 									</div>
-								{/each}
-							</div>
-						{/if}
+									<div class="min-w-0 flex-1">
+										<div class="text-sm font-medium text-gray-900">{permission.name}</div>
+										<div class="text-xs text-gray-500">{permission.type}</div>
+									</div>
+								</div>
+							{:else}
+								<div class="col-span-full text-center py-8">
+									<div class="text-gray-400">
+										<svg class="mx-auto h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+										</svg>
+									</div>
+									<h3 class="text-sm font-medium text-gray-900">No Resource Access</h3>
+									<p class="text-sm text-gray-500">This user doesn't have access to any resources.</p>
+								</div>
+							{/each}
+						</div>
 					</div>
 				</div>
 			</div>

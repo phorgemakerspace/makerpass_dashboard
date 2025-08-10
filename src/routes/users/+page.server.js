@@ -1,9 +1,13 @@
 import { fail } from '@sveltejs/kit';
-import { userDb, resourceDb, permissionDb, getDb } from '$lib/database.js';
+import { userDb, resourceDb, permissionDb, settingsDb } from '$lib/database.js';
 
 export async function load() {
 	const users = userDb.getAll();
 	const resources = resourceDb.getAll();
+	const stripeEnabled = settingsDb.get('stripe_enabled');
+	
+	console.log('Stripe settings check:', { stripeEnabled, result: stripeEnabled === 'true' });
+	console.log('Sample user data:', users[0]); // Log first user to see structure
 	
 	// Get permissions for each user
 	const usersWithPermissions = users.map(user => ({
@@ -13,7 +17,8 @@ export async function load() {
 
 	return {
 		users: usersWithPermissions,
-		resources
+		resources,
+		stripeEnabled: stripeEnabled === 'true'
 	};
 }
 
@@ -35,7 +40,12 @@ export const actions = {
 		}
 
 		try {
-			const userId = userDb.create(name, rfid.toUpperCase(), email);
+			const result = userDb.create({
+				name,
+				rfid: rfid.toUpperCase(),
+				email
+			});
+			const userId = result.lastInsertRowid;
 			
 			// Add permissions
 			for (const resourceId of resourcePermissions) {

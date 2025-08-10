@@ -80,7 +80,7 @@ export const actions = {
 
 		const name = data.get('name');
 		const email = data.get('email');
-		const rfid = data.get('rfid');
+		const rfid = data.get('rfid')?.trim(); // Trim whitespace
 		const enabled = data.get('enabled') === 'true';
 		const address = data.get('address');
 
@@ -90,7 +90,12 @@ export const actions = {
 
 		// Validate RFID format (8 hex characters)
 		if (!/^[0-9A-Fa-f]{8}$/.test(rfid)) {
-			return fail(400, { error: 'RFID must be exactly 8 hexadecimal characters' });
+			const invalidChars = rfid.split('').filter(char => !/[0-9A-Fa-f]/.test(char));
+			const errorMessage = invalidChars.length > 0 
+				? `RFID must contain only hexadecimal characters (0-9, A-F). Invalid characters found: ${invalidChars.join(', ')}`
+				: `RFID must be exactly 8 hexadecimal characters. Got: "${rfid}" (length: ${rfid.length})`;
+			
+			return fail(400, { error: errorMessage });
 		}
 
 		// Check if RFID is already in use by another user
