@@ -88,6 +88,13 @@
 		machineCategoryCollapsed[category] = !machineCategoryCollapsed[category];
 		machineCategoryCollapsed = { ...machineCategoryCollapsed };
 	}
+
+	// Handle keyboard events for modal accessibility
+	function handleKeydown(event) {
+		if (event.key === 'Escape') {
+			closeModals();
+		}
+	}
 </script>
 
 <svelte:head>
@@ -130,6 +137,8 @@
 			<button
 				on:click={toggleDoorsSection}
 				class="w-full text-left flex items-center justify-between text-xl font-semibold text-gray-900 mb-4 hover:text-gray-700 transition-colors"
+				aria-expanded={!doorsCollapsed}
+				aria-controls="doors-content"
 			>
 				<div class="flex items-center">
 					Doors
@@ -146,7 +155,8 @@
 			</button>
 			
 			{#if !doorsCollapsed}
-				{#if data.groupedResources.doors.length === 0}
+				<div id="doors-content">
+					{#if data.groupedResources.doors.length === 0}
 					<div class="text-center py-8 text-gray-500">
 						<p>No doors configured yet.</p>
 					</div>
@@ -167,6 +177,7 @@
 											on:click={() => toggleResourceStatus(resource.id, resource.enabled)}
 											class="toggle-switch {resource.enabled ? 'bg-green-500' : 'bg-gray-300'} relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2"
 											title="Enable/Disable"
+											aria-label="{resource.enabled ? 'Disable' : 'Enable'} {resource.name}"
 										>
 											<span class="sr-only">Toggle resource</span>
 											<span class="{resource.enabled ? 'translate-x-5' : 'translate-x-0'} pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
@@ -206,6 +217,7 @@
 						{/each}
 					</div>
 				{/if}
+				</div>
 			{/if}
 		</div>
 
@@ -214,6 +226,8 @@
 			<button
 				on:click={toggleMachinesSection}
 				class="w-full text-left flex items-center justify-between text-xl font-semibold text-gray-900 mb-4 hover:text-gray-700 transition-colors"
+				aria-expanded={!machinesCollapsed}
+				aria-controls="machines-content"
 			>
 				<div class="flex items-center">
 					Machines
@@ -230,16 +244,19 @@
 			</button>
 			
 			{#if !machinesCollapsed}
-				{#if Object.keys(data.groupedResources.machines).length === 0}
-					<div class="text-center py-8 text-gray-500">
-						<p>No machines configured yet.</p>
-					</div>
-				{:else}
+				<div id="machines-content">
+					{#if Object.keys(data.groupedResources.machines).length === 0}
+						<div class="text-center py-8 text-gray-500">
+							<p>No machines configured yet.</p>
+						</div>
+					{:else}
 					{#each Object.entries(data.groupedResources.machines) as [category, machines]}
 						<div class="mb-6">
 							<button
 								on:click={() => toggleMachineCategory(category)}
 								class="w-full text-left flex items-center justify-between text-lg font-medium text-gray-800 mb-3 hover:text-gray-600 transition-colors"
+								aria-expanded={!machineCategoryCollapsed[category]}
+								aria-controls="category-{category.toLowerCase().replace(/\s+/g, '-')}-content"
 							>
 								<div class="flex items-center capitalize">
 									{category}
@@ -256,7 +273,7 @@
 							</button>
 							
 							{#if !machineCategoryCollapsed[category]}
-								<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+								<div id="category-{category.toLowerCase().replace(/\s+/g, '-')}-content" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 									{#each machines as resource}
 										<div class="bg-white rounded-lg shadow border p-4 hover:shadow-md transition-shadow">
 											<div class="flex items-start justify-between mb-3">
@@ -272,6 +289,7 @@
 														on:click={() => toggleResourceStatus(resource.id, resource.enabled)}
 														class="toggle-switch {resource.enabled ? 'bg-green-500' : 'bg-gray-300'} relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2"
 														title="Enable/Disable"
+														aria-label="{resource.enabled ? 'Disable' : 'Enable'} {resource.name}"
 													>
 														<span class="sr-only">Toggle resource</span>
 														<span class="{resource.enabled ? 'translate-x-5' : 'translate-x-0'} pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
@@ -330,6 +348,7 @@
 						</div>
 					{/each}
 				{/if}
+				</div>
 			{/if}
 		</div>
 	</div>
@@ -337,10 +356,14 @@
 
 <!-- Add Resource Modal -->
 {#if showAddModal}
-	<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" on:click={closeModals}>
+	<!-- svelte-ignore a11y-click-events-have-key-events -->
+	<!-- svelte-ignore a11y-no-static-element-interactions -->
+	<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" on:click={closeModals} on:keydown={handleKeydown} role="dialog" aria-modal="true" aria-labelledby="add-modal-title" tabindex="-1">
+		<!-- svelte-ignore a11y-click-events-have-key-events -->
+		<!-- svelte-ignore a11y-no-static-element-interactions -->
 		<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" on:click|stopPropagation>
 			<form method="POST" action="?/create" use:enhance on:submit={closeModals}>
-				<h3 class="text-lg font-medium text-gray-900 mb-4">Add New Resource</h3>
+				<h3 id="add-modal-title" class="text-lg font-medium text-gray-900 mb-4">Add New Resource</h3>
 				
 				<div class="space-y-4">
 					<div>
@@ -421,12 +444,16 @@
 
 <!-- Edit Resource Modal -->
 {#if showEditModal && editingResource}
-	<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" on:click={closeModals}>
+	<!-- svelte-ignore a11y-click-events-have-key-events -->
+	<!-- svelte-ignore a11y-no-static-element-interactions -->
+	<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" on:click={closeModals} on:keydown={handleKeydown} role="dialog" aria-modal="true" aria-labelledby="edit-modal-title" tabindex="-1">
+		<!-- svelte-ignore a11y-click-events-have-key-events -->
+		<!-- svelte-ignore a11y-no-static-element-interactions -->
 		<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" on:click|stopPropagation>
 			<form method="POST" action="?/update" use:enhance on:submit={closeModals}>
 				<input type="hidden" name="id" value={editingResource.id} />
 				
-				<h3 class="text-lg font-medium text-gray-900 mb-4">Edit Resource</h3>
+				<h3 id="edit-modal-title" class="text-lg font-medium text-gray-900 mb-4">Edit Resource</h3>
 				
 				<div class="space-y-4">
 					<div>

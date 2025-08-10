@@ -235,8 +235,8 @@
 								</div>
 
 								<!-- Resource Access within the form -->
-								<div>
-									<label class="block text-sm font-medium text-gray-700 mb-2">Resource Access</label>
+								<fieldset>
+									<legend class="block text-sm font-medium text-gray-700 mb-2">Resource Access</legend>
 									<div class="space-y-3 max-h-64 overflow-y-auto border border-gray-200 rounded-md p-4">
 										{#each data.allResources as resource}
 											<label class="flex items-start space-x-3">
@@ -257,7 +257,7 @@
 											</label>
 										{/each}
 									</div>
-								</div>
+								</fieldset>
 
 								<div class="flex justify-end space-x-3">
 									<button
