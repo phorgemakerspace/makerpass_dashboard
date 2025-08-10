@@ -89,13 +89,6 @@
 		user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
 		user.email.toLowerCase().includes(searchTerm.toLowerCase())
 	);
-
-	// Debug logging
-	$: {
-		console.log('Stripe enabled:', data.stripeEnabled);
-		console.log('Sample user:', data.users[0]);
-		console.log('Users with customer_id:', data.users.filter(u => u.customer_id));
-	}
 </script>
 
 <svelte:head>

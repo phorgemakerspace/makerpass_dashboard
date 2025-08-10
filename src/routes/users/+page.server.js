@@ -1,13 +1,10 @@
 import { fail } from '@sveltejs/kit';
-import { userDb, resourceDb, permissionDb, settingsDb } from '$lib/database.js';
+import { userDb, resourceDb, permissionDb, settingsDb, getDb } from '$lib/database.js';
 
 export async function load() {
 	const users = userDb.getAll();
 	const resources = resourceDb.getAll();
 	const stripeEnabled = settingsDb.get('stripe_enabled');
-	
-	console.log('Stripe settings check:', { stripeEnabled, result: stripeEnabled === 'true' });
-	console.log('Sample user data:', users[0]); // Log first user to see structure
 	
 	// Get permissions for each user
 	const usersWithPermissions = users.map(user => ({
