@@ -1,6 +1,7 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
+	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
 	
 	export let data;
 	export let form;
@@ -113,13 +114,10 @@
 	<div class="border-4 border-dashed border-gray-200 rounded-lg p-4 sm:p-8">
 		<!-- Header with breadcrumb -->
 		<div class="mb-6">
-			<nav class="flex items-center space-x-2 text-sm text-gray-500 mb-4">
-				<a href="/users" class="hover:text-gray-700">Users</a>
-				<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-					<path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-				</svg>
-				<span class="text-gray-900">{data.user.name}</span>
-			</nav>
+			<Breadcrumb items={[
+				{ href: '/users', label: 'Users' },
+				{ label: data.user.name }
+			]} />
 
 			<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
 				<div>
@@ -135,7 +133,7 @@
 					{/if}
 					<button
 						on:click={toggleEditMode}
-						class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+						class="btn-primary px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
 					>
 						{editMode ? 'Cancel Edit' : 'Edit User'}
 					</button>
@@ -269,7 +267,7 @@
 									</button>
 									<button
 										type="submit"
-										class="btn-primary px-4 py-2 text-sm font-medium text-white rounded-md"
+										class="btn-primary px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
 									>
 										Save Changes
 									</button>

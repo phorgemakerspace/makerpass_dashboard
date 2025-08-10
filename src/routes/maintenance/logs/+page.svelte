@@ -1,6 +1,7 @@
 <script>
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
 	
 	export let data;
 	
@@ -88,6 +89,11 @@
 <div class="px-4 py-6 sm:px-0">
 	<div class="border-4 border-dashed border-gray-200 rounded-lg p-4 sm:p-8">
 		<div class="mb-6 sm:mb-8">
+			<Breadcrumb items={[
+				{ href: '/maintenance', label: 'Maintenance' },
+				{ label: 'Logs' }
+			]} />
+			
 			<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
 				<div>
 					<h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Maintenance Logs</h1>
@@ -100,12 +106,6 @@
 					>
 						Export CSV
 					</button>
-					<a
-						href="/maintenance"
-						class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm font-medium"
-					>
-						← Back to Maintenance
-					</a>
 				</div>
 			</div>
 		</div>
@@ -203,7 +203,7 @@
 			<div class="flex space-x-2">
 				<button
 					on:click={applyFilters}
-					class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+					class="btn-primary px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
 				>
 					Apply Filters
 				</button>
@@ -315,9 +315,6 @@
 						Log your first maintenance activity to see it here
 					{/if}
 				</p>
-				<a href="/maintenance" class="text-blue-600 hover:text-blue-800 font-medium">
-					← Back to Maintenance
-				</a>
 			</div>
 		{/if}
 	</div>

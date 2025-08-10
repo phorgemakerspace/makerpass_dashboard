@@ -57,6 +57,36 @@
 		};
 		return reasonMap[reason] || reason;
 	}
+
+	function exportLogs() {
+		const headers = ['Timestamp', 'Status', 'User', 'User Email', 'Resource', 'Resource ID', 'Resource Type', 'RFID', 'Reason'];
+		const csvData = [
+			headers,
+			...data.logs.map(log => [
+				formatTimestamp(log.timestamp),
+				log.success ? 'Success' : 'Failed',
+				log.user_name || 'Unknown',
+				log.user_email || '',
+				log.resource_name,
+				log.resource_id,
+				log.resource_type,
+				log.rfid,
+				getReasonText(log.reason)
+			])
+		];
+		
+		const csv = csvData.map(row => 
+			row.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(',')
+		).join('\n');
+		
+		const blob = new Blob([csv], { type: 'text/csv' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `access-logs-${new Date().toISOString().split('T')[0]}.csv`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
 </script>
 
 <svelte:head>
@@ -65,7 +95,20 @@
 
 <div class="px-4 py-6 sm:px-0">
 	<div class="border-4 border-dashed border-gray-200 rounded-lg p-4 sm:p-8">
-		<h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">Access Logs</h1>
+		<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
+			<div>
+				<h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Access Logs</h1>
+				<p class="text-gray-600 mt-2 text-sm sm:text-base">View and filter access activity across all resources</p>
+			</div>
+			<div class="flex space-x-2">
+				<button
+					on:click={exportLogs}
+					class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-md text-sm font-medium"
+				>
+					Export CSV
+				</button>
+			</div>
+		</div>
 		
 		<!-- Filters -->
 		<div class="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">

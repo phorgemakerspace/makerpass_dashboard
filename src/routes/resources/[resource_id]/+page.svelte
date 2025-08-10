@@ -1,5 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
+	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
 	
 	export let data;
 	export let form;
@@ -248,10 +249,11 @@
 		{/if}
 
 		<!-- Header -->
-		<div class="mb-6 sm:mb-8">
-			<nav class="mb-4">
-				<a href="/resources" class="text-blue-600 hover:text-blue-800">← Back to Resources</a>
-			</nav>
+		<div class="mb-6">
+			<Breadcrumb items={[
+				{ href: '/resources', label: 'Resources' },
+				{ label: data.resource.name }
+			]} />
 			
 			<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
 				<div>

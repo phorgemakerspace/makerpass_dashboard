@@ -104,6 +104,16 @@
 	function setActiveTab(tab) {
 		activeTab = tab;
 	}
+
+	// Maintenance threshold slider
+	let maintenanceThreshold = data.maintenanceThreshold || 75;
+	
+	// Sync with server data when it changes (after form submissions)
+	$: {
+		if (data.maintenanceThreshold !== undefined) {
+			maintenanceThreshold = data.maintenanceThreshold;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -206,7 +216,7 @@
 							class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {activeTab === 'api' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}"
 						>
 							<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m0 0a2 2 0 012 2m-2-2a2 2 0 00-2 2m0 0a2 2 0 01-2 2m2-2V7m0 0V5a2 2 0 00-2-2H9a2 2 0 00-2 2v2m6 0H9" />
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
 							</svg>
 							API Configuration
 						</button>
@@ -216,7 +226,9 @@
 							class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {activeTab === 'theme' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}"
 						>
 							<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z" />
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l7-7 3 3-7 7-3-3z" />
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 13l-1.5-7.5L2.036 3.732l1.5 7.5L18 13z" />
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.5 5.5l-14 14" />
 							</svg>
 							Theme Configuration
 						</button>
@@ -710,12 +722,12 @@
 										min="0"
 										max="100"
 										step="5"
-										value={data.settings?.maintenance_threshold || 75}
+										bind:value={maintenanceThreshold}
 										class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
 									/>
 									<div class="flex items-center space-x-2">
 										<span class="text-sm font-medium text-gray-900 min-w-[3rem] text-right">
-											{data.settings?.maintenance_threshold || 75}%
+											{maintenanceThreshold}%
 										</span>
 									</div>
 								</div>
