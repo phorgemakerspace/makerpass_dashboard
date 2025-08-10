@@ -121,6 +121,14 @@ function initializeDatabase() {
 		CREATE INDEX IF NOT EXISTS idx_resources_type ON resources (type);
 		CREATE INDEX IF NOT EXISTS idx_maintenance_intervals_resource ON maintenance_intervals (resource_id);
 		CREATE INDEX IF NOT EXISTS idx_maintenance_events_resource ON maintenance_events (resource_id);
+
+		CREATE TABLE IF NOT EXISTS settings (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			key TEXT UNIQUE NOT NULL,
+			value TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
 	`);
 
 	// Add new columns to existing resources table if they don't exist
@@ -217,6 +225,58 @@ function initializeDatabase() {
 		db.prepare("ALTER TABLE admin ADD COLUMN logo_font_color TEXT DEFAULT '#ffffff'").run();
 	} catch (error) {
 		// Column already exists, ignore the error
+	}
+
+	// Add new user fields for Stripe integration and enhanced user management
+	try {
+		db.prepare("ALTER TABLE users ADD COLUMN enabled BOOLEAN DEFAULT TRUE").run();
+	} catch (error) {
+		// Column already exists, ignore the error
+	}
+	
+	try {
+		db.prepare("ALTER TABLE users ADD COLUMN address TEXT").run();
+	} catch (error) {
+		// Column already exists, ignore the error
+	}
+	
+	try {
+		db.prepare("ALTER TABLE users ADD COLUMN customer_id TEXT").run();
+	} catch (error) {
+		// Column already exists, ignore the error
+	}
+	
+	try {
+		db.prepare("ALTER TABLE users ADD COLUMN subscription_type TEXT").run();
+	} catch (error) {
+		// Column already exists, ignore the error
+	}
+	
+	try {
+		db.prepare("ALTER TABLE users ADD COLUMN subscription_expires DATETIME").run();
+	} catch (error) {
+		// Column already exists, ignore the error
+	}
+	
+	try {
+		db.prepare("ALTER TABLE users ADD COLUMN updated_at DATETIME").run();
+		// Set initial values for updated_at to match created_at
+		db.prepare("UPDATE users SET updated_at = created_at WHERE updated_at IS NULL").run();
+	} catch (error) {
+		// Column already exists, ignore the error
+	}
+
+	// Initialize default Stripe settings if they don't exist
+	try {
+		const stripeEnabledExists = db.prepare('SELECT COUNT(*) as count FROM settings WHERE key = ?').get('stripe_enabled');
+		if (stripeEnabledExists.count === 0) {
+			db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('stripe_enabled', 'false');
+			db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('stripe_webhook_secret', '');
+			db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('stripe_public_key', '');
+			db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('stripe_secret_key', '');
+		}
+	} catch (error) {
+		// Settings table may not exist yet, ignore
 	}
 
 	// Check if admin user exists - don't create default credentials
@@ -1209,5 +1269,39 @@ export const adminDb = {
 			console.error('Error getting database size:', error);
 			return 0;
 		}
+	}
+};
+
+// Database operations for settings
+export const settingsDb = {
+	get(key) {
+		const db = getDb();
+		const result = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+		return result?.value || null;
+	},
+
+	set(key, value) {
+		const db = getDb();
+		db.prepare(`
+			INSERT INTO settings (key, value, updated_at) 
+			VALUES (?, ?, CURRENT_TIMESTAMP)
+			ON CONFLICT(key) DO UPDATE SET 
+				value = excluded.value,
+				updated_at = CURRENT_TIMESTAMP
+		`).run(key, value);
+	},
+
+	getAll() {
+		const db = getDb();
+		const results = db.prepare('SELECT key, value FROM settings').all();
+		return results.reduce((acc, { key, value }) => {
+			acc[key] = value;
+			return acc;
+		}, {});
+	},
+
+	delete(key) {
+		const db = getDb();
+		db.prepare('DELETE FROM settings WHERE key = ?').run(key);
 	}
 };

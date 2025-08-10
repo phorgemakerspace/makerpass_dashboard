@@ -187,6 +187,13 @@
 						>
 							Email
 						</button>
+						<button
+							type="button"
+							on:click={() => setActiveTab('stripe')}
+							class="flex-shrink-0 px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'stripe' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+						>
+							Stripe
+						</button>
 					</div>
 				</div>
 
@@ -253,6 +260,16 @@
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
 							</svg>
 							Email Settings
+						</button>
+						<button
+							type="button"
+							on:click={() => setActiveTab('stripe')}
+							class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {activeTab === 'stripe' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}"
+						>
+							<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+							</svg>
+							Stripe Integration
 						</button>
 					</nav>
 				</div>
@@ -872,6 +889,139 @@
 									class="btn-primary px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
 								>
 									Save Email Settings
+								</button>
+							</div>
+						</form>
+					</div>
+				{/if}
+
+				<!-- Stripe Integration Section -->
+				{#if activeTab === 'stripe'}
+					<div class="bg-white p-4 sm:p-6 rounded-lg shadow">
+						<h2 class="text-lg font-medium text-gray-900 mb-4">Stripe Integration</h2>
+						<p class="text-sm text-gray-600 mb-6">
+							Configure Stripe webhook integration to automatically manage user subscriptions and access.
+							When enabled, Stripe fields will appear in user profiles and new users can be created from subscription webhooks.
+						</p>
+						
+						<form method="POST" action="?/updateStripeSettings" use:enhance>
+							<input type="hidden" name="admin_id" value={data.adminId} />
+							
+							<div class="space-y-6">
+								<!-- Enable/Disable Toggle -->
+								<div>
+									<div class="flex items-center">
+										<input
+											type="checkbox"
+											id="stripe_enabled"
+											name="stripe_enabled"
+											checked={data.stripe_enabled}
+											class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+										/>
+										<label for="stripe_enabled" class="ml-2 block text-sm font-medium text-gray-700">
+											Enable Stripe Integration
+										</label>
+									</div>
+									<p class="mt-1 text-sm text-gray-500">
+										Show Stripe-related fields in user profiles and enable webhook processing
+									</p>
+								</div>
+
+								<!-- Webhook URL Display -->
+								<div>
+									<label for="webhook_url" class="block text-sm font-medium text-gray-700 mb-2">Webhook URL</label>
+									<div class="flex items-center space-x-2">
+										<input
+											type="text"
+											id="webhook_url"
+											value="{window.location.origin}/webhooks/stripe"
+											readonly
+											class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-sm text-gray-600"
+										/>
+										<button
+											type="button"
+											on:click={() => navigator.clipboard.writeText(`${window.location.origin}/webhooks/stripe`)}
+											class="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+										>
+											Copy
+										</button>
+									</div>
+									<p class="mt-1 text-sm text-gray-500">
+										Add this URL to your Stripe webhook endpoints. Listen for: customer.*, customer.subscription.*, invoice.payment_succeeded, invoice.payment_failed
+									</p>
+								</div>
+
+								<!-- Webhook Secret -->
+								<div>
+									<label for="stripe_webhook_secret" class="block text-sm font-medium text-gray-700 mb-2">
+										Webhook Signing Secret
+									</label>
+									<input
+										type="password"
+										id="stripe_webhook_secret"
+										name="stripe_webhook_secret"
+										value={data.stripe_webhook_secret}
+										class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+										placeholder="whsec_..."
+									/>
+									<p class="mt-1 text-sm text-gray-500">
+										Get this from your Stripe webhook endpoint settings
+									</p>
+								</div>
+
+								<!-- API Keys -->
+								<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<div>
+										<label for="stripe_public_key" class="block text-sm font-medium text-gray-700 mb-2">
+											Publishable Key
+										</label>
+										<input
+											type="text"
+											id="stripe_public_key"
+											name="stripe_public_key"
+											value={data.stripe_public_key}
+											class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+											placeholder="pk_..."
+										/>
+									</div>
+									<div>
+										<label for="stripe_secret_key" class="block text-sm font-medium text-gray-700 mb-2">
+											Secret Key
+										</label>
+										<input
+											type="password"
+											id="stripe_secret_key"
+											name="stripe_secret_key"
+											value={data.stripe_secret_key}
+											class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+											placeholder="sk_..."
+										/>
+									</div>
+								</div>
+
+								<!-- Webhook Test -->
+								<div class="bg-blue-50 border border-blue-200 rounded-md p-4">
+									<div class="flex items-start">
+										<svg class="mt-0.5 mr-3 h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+										</svg>
+										<div class="flex-1">
+											<h4 class="text-sm font-medium text-blue-800">Testing Your Integration</h4>
+											<p class="mt-1 text-sm text-blue-700">
+												After saving your settings, you can test the webhook by creating a test subscription in Stripe. 
+												The system will automatically create or update user accounts based on subscription events.
+											</p>
+										</div>
+									</div>
+								</div>
+							</div>
+							
+							<div class="mt-6 flex justify-end">
+								<button
+									type="submit"
+									class="btn-primary px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+								>
+									Save Stripe Settings
 								</button>
 							</div>
 						</form>

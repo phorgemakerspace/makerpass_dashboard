@@ -1,6 +1,5 @@
 import { fail } from '@sveltejs/kit';
-import { userDb, resourceDb, permissionDb } from '$lib/database.js';
-import { validateRfid, validateEmail } from '$lib/auth.js';
+import { userDb, resourceDb, permissionDb, getDb } from '$lib/database.js';
 
 export async function load() {
 	const users = userDb.getAll();
@@ -11,7 +10,7 @@ export async function load() {
 		...user,
 		permissions: permissionDb.getUserPermissions(user.id)
 	}));
-	
+
 	return {
 		users: usersWithPermissions,
 		resources
@@ -22,104 +21,118 @@ export const actions = {
 	create: async ({ request }) => {
 		const data = await request.formData();
 		const name = data.get('name');
-		const rfid = data.get('rfid').toUpperCase();
+		const rfid = data.get('rfid');
 		const email = data.get('email');
+		const resourcePermissions = data.getAll('resource_permissions');
 
 		if (!name || !rfid || !email) {
 			return fail(400, { error: 'Name, RFID, and email are required' });
 		}
 
-		console.log('RFID validation debug:', {
-			original: data.get('rfid'),
-			uppercase: rfid,
-			length: rfid.length,
-			chars: rfid.split('').map(c => c.charCodeAt(0))
-		});
-
-		if (!validateRfid(rfid)) {
-			return fail(400, { error: 'RFID must be an 8-character hexadecimal string' });
-		}
-
-		if (!validateEmail(email)) {
-			return fail(400, { error: 'Invalid email format' });
+		// Validate RFID format (8 hex characters)
+		if (!/^[0-9A-Fa-f]{8}$/.test(rfid)) {
+			return fail(400, { error: 'RFID must be exactly 8 hexadecimal characters' });
 		}
 
 		try {
-			const result = userDb.create({ name, rfid, email });
+			const userId = userDb.create(name, rfid.toUpperCase(), email);
 			
-			// Grant permissions to selected resources
-			const resourceIds = data.getAll('resource_permissions');
-			for (const resourceId of resourceIds) {
-				permissionDb.grant(result.lastInsertRowid, resourceId);
+			// Add permissions
+			for (const resourceId of resourcePermissions) {
+				permissionDb.grant(userId, parseInt(resourceId));
 			}
-			
+
 			return { success: true };
-		} catch (error) {
-			console.error('Create user error:', error);
-			if (error.message.includes('UNIQUE constraint failed')) {
-				return fail(400, { error: 'RFID or email already exists' });
+		} catch (err) {
+			if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+				if (err.message.includes('rfid')) {
+					return fail(400, { error: 'RFID is already in use' });
+				} else if (err.message.includes('email')) {
+					return fail(400, { error: 'Email is already in use' });
+				}
 			}
+			console.error('Error creating user:', err);
 			return fail(500, { error: 'Failed to create user' });
-		}
-	},
-
-	delete: async ({ request }) => {
-		const data = await request.formData();
-		const id = data.get('id');
-
-		if (!id) {
-			return fail(400, { error: 'User ID is required' });
-		}
-
-		try {
-			userDb.delete(id);
-			return { success: true };
-		} catch (error) {
-			console.error('Delete user error:', error);
-			return fail(500, { error: 'Failed to delete user' });
 		}
 	},
 
 	update: async ({ request }) => {
 		const data = await request.formData();
-		const id = data.get('id');
+		const id = parseInt(data.get('id'));
 		const name = data.get('name');
-		const rfid = data.get('rfid').toUpperCase();
+		const rfid = data.get('rfid');
 		const email = data.get('email');
+		const resourcePermissions = data.getAll('resource_permissions');
 
-		if (!id || !name || !rfid || !email) {
-			return fail(400, { error: 'ID, name, RFID, and email are required' });
+		if (!name || !rfid || !email) {
+			return fail(400, { error: 'Name, RFID, and email are required' });
 		}
 
-		if (!validateRfid(rfid)) {
-			return fail(400, { error: 'RFID must be an 8-character hexadecimal string' });
-		}
-
-		if (!validateEmail(email)) {
-			return fail(400, { error: 'Invalid email format' });
+		// Validate RFID format (8 hex characters)
+		if (!/^[0-9A-Fa-f]{8}$/.test(rfid)) {
+			return fail(400, { error: 'RFID must be exactly 8 hexadecimal characters' });
 		}
 
 		try {
-			userDb.update(id, { name, rfid, email });
+			// Update user
+			userDb.update(id, name, rfid.toUpperCase(), email);
 			
-			// Update permissions - remove all existing and add selected ones
-			const userPermissions = permissionDb.getUserPermissions(id);
-			for (const permission of userPermissions) {
-				permissionDb.revoke(id, permission.id);
+			// Update permissions
+			const db = getDb();
+			// Clear existing permissions
+			db.prepare('DELETE FROM user_resources WHERE user_id = ?').run(id);
+			// Add new permissions
+			for (const resourceId of resourcePermissions) {
+				permissionDb.grant(id, parseInt(resourceId));
 			}
-			
-			const resourceIds = data.getAll('resource_permissions');
-			for (const resourceId of resourceIds) {
-				permissionDb.grant(id, resourceId);
+
+			return { success: true };
+		} catch (err) {
+			if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+				if (err.message.includes('rfid')) {
+					return fail(400, { error: 'RFID is already in use' });
+				} else if (err.message.includes('email')) {
+					return fail(400, { error: 'Email is already in use' });
+				}
 			}
+			console.error('Error updating user:', err);
+			return fail(500, { error: 'Failed to update user' });
+		}
+	},
+
+	toggleStatus: async ({ request }) => {
+		const data = await request.formData();
+		const id = parseInt(data.get('id'));
+		const enabled = data.get('enabled') === 'true';
+
+		try {
+			// Update user status
+			const db = getDb();
+			db.prepare('UPDATE users SET enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(enabled ? 1 : 0, id);
 			
 			return { success: true };
-		} catch (error) {
-			console.error('Update user error:', error);
-			if (error.message.includes('UNIQUE constraint failed')) {
-				return fail(400, { error: 'RFID or email already exists' });
-			}
-			return fail(500, { error: 'Failed to update user' });
+		} catch (err) {
+			console.error('Error toggling user status:', err);
+			return fail(500, { error: 'Failed to update user status' });
+		}
+	},
+
+	delete: async ({ request }) => {
+		const data = await request.formData();
+		const id = parseInt(data.get('id'));
+
+		try {
+			// Delete user permissions first
+			const db = getDb();
+			db.prepare('DELETE FROM user_resources WHERE user_id = ?').run(id);
+			
+			// Delete the user
+			userDb.delete(id);
+
+			return { success: true };
+		} catch (err) {
+			console.error('Error deleting user:', err);
+			return fail(500, { error: 'Failed to delete user' });
 		}
 	}
 };

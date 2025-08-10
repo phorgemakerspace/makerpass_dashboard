@@ -1,5 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
 	
 	export let data;
 	export let form;
@@ -43,8 +44,43 @@
 		}
 	}
 
+	function toggleUserStatus(userId, currentStatus) {
+		const form = document.createElement('form');
+		form.method = 'POST';
+		form.action = '?/toggleStatus';
+		
+		const idInput = document.createElement('input');
+		idInput.type = 'hidden';
+		idInput.name = 'id';
+		idInput.value = userId;
+		
+		const statusInput = document.createElement('input');
+		statusInput.type = 'hidden';
+		statusInput.name = 'enabled';
+		statusInput.value = (!currentStatus).toString();
+		
+		form.appendChild(idInput);
+		form.appendChild(statusInput);
+		document.body.appendChild(form);
+		form.submit();
+	}
+
+	function viewUserDetails(userId) {
+		goto(`/users/${userId}`);
+	}
+
 	function formatRfid(rfid) {
 		return rfid.toUpperCase();
+	}
+
+	function getStatusBadge(enabled) {
+		return enabled 
+			? { class: 'bg-green-100 text-green-800', text: 'Active' }
+			: { class: 'bg-red-100 text-red-800', text: 'Disabled' };
+	}
+
+	function getResourceCount(permissions) {
+		return permissions.length;
 	}
 </script>
 
@@ -80,49 +116,102 @@
 			</div>
 		{/if}
 
-		<!-- Users List -->
-		<div class="bg-white shadow overflow-hidden sm:rounded-md">
-			<ul class="divide-y divide-gray-200">
-				{#each data.users as user}
-					<li class="px-4 sm:px-6 py-4">
-						<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-							<div class="min-w-0 flex-1">
-								<div class="text-sm font-medium text-gray-900">{user.name}</div>
-								<div class="text-sm text-gray-500 mt-1">
-									<div class="break-all">RFID: {formatRfid(user.rfid)}</div>
-									<div class="break-all">Email: {user.email}</div>
-								</div>
-								<div class="text-sm text-gray-500 mt-1">
-									Access to: 
-									{#if user.permissions.length > 0}
-										{user.permissions.map(p => p.name).join(', ')}
-									{:else}
-										No resources
-									{/if}
-								</div>
+		<!-- Users Grid -->
+		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+			{#each data.users as user}
+				<div class="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+					<div class="p-4 sm:p-6">
+						<!-- User Header -->
+						<div class="flex items-start justify-between mb-3">
+							<div class="flex-1 min-w-0">
+								<h3 class="text-lg font-semibold text-gray-900 truncate">{user.name}</h3>
+								<p class="text-sm text-gray-500 truncate">{user.email}</p>
 							</div>
-							<div class="flex items-center space-x-2 sm:flex-shrink-0">
-								<button
-									on:click={() => openEditModal(user)}
-									class="text-gray-700 hover:text-gray-900 text-sm font-medium flex-1 sm:flex-none px-3 py-1 sm:px-0 sm:py-0"
-								>
-									Edit
-								</button>
-								<button
-									on:click={() => confirmDelete(user.id, user.name)}
-									class="text-red-600 hover:text-red-900 text-sm font-medium flex-1 sm:flex-none px-3 py-1 sm:px-0 sm:py-0"
-								>
-									Delete
-								</button>
+							<div class="ml-2">
+								{#if true}
+									{@const status = getStatusBadge(user.enabled ?? true)}
+									<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {status.class}">
+										{status.text}
+									</span>
+								{/if}
 							</div>
 						</div>
-					</li>
-				{:else}
-					<li class="px-4 sm:px-6 py-4 text-center text-gray-500">
-						No users configured yet
-					</li>
-				{/each}
-			</ul>
+
+						<!-- RFID -->
+						<div class="mb-3">
+							<p class="text-sm text-gray-500">RFID</p>
+							<p class="text-sm font-mono text-gray-900 bg-gray-50 px-2 py-1 rounded">
+								{formatRfid(user.rfid)}
+							</p>
+						</div>
+
+						<!-- Resource Access -->
+						<div class="mb-4">
+							<p class="text-sm text-gray-500 mb-1">Resource Access</p>
+							{#if getResourceCount(user.permissions) > 0}
+								{@const resourceCount = getResourceCount(user.permissions)}
+								<div class="flex items-center text-sm">
+									<svg class="w-4 h-4 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+										<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+									</svg>
+									<span class="text-green-700">{resourceCount} resource{resourceCount !== 1 ? 's' : ''}</span>
+								</div>
+							{:else}
+								<div class="flex items-center text-sm">
+									<svg class="w-4 h-4 text-red-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+										<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+									</svg>
+									<span class="text-red-600">No access</span>
+								</div>
+							{/if}
+						</div>
+
+						<!-- Action Buttons -->
+						<div class="flex items-center space-x-2">
+							<button
+								on:click={() => viewUserDetails(user.id)}
+								class="flex-1 bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+							>
+								View Details
+							</button>
+							<button
+								on:click={() => toggleUserStatus(user.id, user.enabled ?? true)}
+								class="px-3 py-2 rounded-md text-sm font-medium transition-colors {user.enabled ?? true 
+									? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100' 
+									: 'bg-green-50 text-green-700 hover:bg-green-100'}"
+								title={user.enabled ?? true ? 'Disable User' : 'Enable User'}
+							>
+								{user.enabled ?? true ? 'Disable' : 'Enable'}
+							</button>
+							<button
+								on:click={() => confirmDelete(user.id, user.name)}
+								class="px-3 py-2 rounded-md text-sm font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+								title="Delete User"
+							>
+								Delete
+							</button>
+						</div>
+					</div>
+				</div>
+			{:else}
+				<div class="col-span-full">
+					<div class="text-center py-12">
+						<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 01-3 0m3 0V9a9 9 0 10-18 0v12.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 01-3 0" />
+						</svg>
+						<h3 class="mt-2 text-sm font-medium text-gray-900">No users</h3>
+						<p class="mt-1 text-sm text-gray-500">Get started by creating a new user.</p>
+						<div class="mt-6">
+							<button
+								on:click={openAddModal}
+								class="btn-primary text-white px-4 py-2 rounded-md text-sm font-medium"
+							>
+								Add First User
+							</button>
+						</div>
+					</div>
+				</div>
+			{/each}
 		</div>
 	</div>
 </div>
@@ -173,22 +262,24 @@
 				</div>
 
 				<div class="mb-4">
-					<label class="block text-sm font-medium text-gray-700 mb-2">Resource Access</label>
-					<div class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
-						{#each data.resources as resource}
-							<label class="flex items-center">
-								<input
-									type="checkbox"
-									name="resource_permissions"
-									value={resource.id}
-									class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-								/>
-								<span class="ml-2 text-sm text-gray-700">
-									{resource.name} ({resource.type})
-								</span>
-							</label>
-						{/each}
-					</div>
+					<fieldset>
+						<legend class="block text-sm font-medium text-gray-700 mb-2">Resource Access</legend>
+						<div class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
+							{#each data.resources as resource}
+								<label class="flex items-center">
+									<input
+										type="checkbox"
+										name="resource_permissions"
+										value={resource.id}
+										class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+									/>
+									<span class="ml-2 text-sm text-gray-700">
+										{resource.name} ({resource.type})
+									</span>
+								</label>
+							{/each}
+						</div>
+					</fieldset>
 				</div>
 
 				<div class="flex justify-end space-x-2">
@@ -261,23 +352,25 @@
 				</div>
 
 				<div class="mb-4">
-					<label class="block text-sm font-medium text-gray-700 mb-2">Resource Access</label>
-					<div class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
-						{#each data.resources as resource}
-							<label class="flex items-center">
-								<input
-									type="checkbox"
-									name="resource_permissions"
-									value={resource.id}
-									checked={editingUser.selectedPermissions.includes(resource.id.toString())}
-									class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-								/>
-								<span class="ml-2 text-sm text-gray-700">
-									{resource.name} ({resource.type})
-								</span>
-							</label>
-						{/each}
-					</div>
+					<fieldset>
+						<legend class="block text-sm font-medium text-gray-700 mb-2">Resource Access</legend>
+						<div class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
+							{#each data.resources as resource}
+								<label class="flex items-center">
+									<input
+										type="checkbox"
+										name="resource_permissions"
+										value={resource.id}
+										checked={editingUser.selectedPermissions.includes(resource.id.toString())}
+										class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+									/>
+									<span class="ml-2 text-sm text-gray-700">
+										{resource.name} ({resource.type})
+									</span>
+								</label>
+							{/each}
+						</div>
+					</fieldset>
 				</div>
 
 				<div class="flex justify-end space-x-2">

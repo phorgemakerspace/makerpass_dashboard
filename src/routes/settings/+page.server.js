@@ -1,11 +1,19 @@
 import { fail } from '@sveltejs/kit';
-import { adminDb } from '$lib/database.js';
+import { adminDb, settingsDb } from '$lib/database.js';
 
 export async function load() {
 	const admin = adminDb.getAdmin();
 	const retentionSettings = adminDb.getRetentionSettings();
 	const maintenanceThreshold = adminDb.getMaintenanceThreshold();
 	const dataStats = adminDb.getDataStatistics();
+	
+	// Get Stripe settings
+	const stripeSettings = {
+		stripe_enabled: settingsDb.get('stripe_enabled') === 'true',
+		stripe_webhook_secret: settingsDb.get('stripe_webhook_secret') || '',
+		stripe_public_key: settingsDb.get('stripe_public_key') || '',
+		stripe_secret_key: settingsDb.get('stripe_secret_key') || ''
+	};
 	
 	return {
 		apiKey: admin.api_key,
@@ -18,7 +26,8 @@ export async function load() {
 		accessLogRetentionDays: retentionSettings.accessLogRetentionDays,
 		maintenanceLogRetentionDays: retentionSettings.maintenanceLogRetentionDays,
 		maintenanceThreshold: maintenanceThreshold,
-		dataStatistics: dataStats
+		dataStatistics: dataStats,
+		...stripeSettings
 	};
 }
 
@@ -196,6 +205,33 @@ export const actions = {
 		} catch (error) {
 			console.error('Cleanup error:', error);
 			return fail(500, { error: 'Failed to cleanup old data' });
+		}
+	},
+
+	updateStripeSettings: async ({ request }) => {
+		const data = await request.formData();
+		const adminId = data.get('admin_id');
+
+		if (!adminId) {
+			return fail(400, { error: 'Admin ID is required' });
+		}
+
+		try {
+			const stripeEnabled = data.get('stripe_enabled') === 'on';
+			const webhookSecret = data.get('stripe_webhook_secret') || '';
+			const publicKey = data.get('stripe_public_key') || '';
+			const secretKey = data.get('stripe_secret_key') || '';
+
+			// Update Stripe settings
+			settingsDb.set('stripe_enabled', stripeEnabled.toString());
+			settingsDb.set('stripe_webhook_secret', webhookSecret);
+			settingsDb.set('stripe_public_key', publicKey);
+			settingsDb.set('stripe_secret_key', secretKey);
+
+			return { success: true, message: 'Stripe settings updated successfully' };
+		} catch (error) {
+			console.error('Update Stripe settings error:', error);
+			return fail(500, { error: 'Failed to update Stripe settings' });
 		}
 	}
 };
