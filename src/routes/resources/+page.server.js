@@ -123,11 +123,18 @@ export const actions = {
 		}
 
 		try {
+			// Get current resource to preserve enabled status
+			const currentResource = resourceDb.getById(id);
+			if (!currentResource) {
+				return fail(404, { error: 'Resource not found' });
+			}
+
 			resourceDb.update(id, {
 				name,
 				type,
 				category,
-				require_card_present: requireCardPresent
+				require_card_present: requireCardPresent,
+				enabled: currentResource.enabled // Preserve current enabled status
 			});
 			
 			return { success: true, message: 'Resource updated successfully' };
