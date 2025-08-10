@@ -19,10 +19,13 @@ class RFIDWebSocketServer {
 			
 			ws.on('message', (data) => {
 				try {
+					console.log('WebSocket received raw data:', data.toString());
 					const message = JSON.parse(data);
+					console.log('WebSocket parsed message:', JSON.stringify(message));
 					this.handleMessage(ws, message);
 				} catch (error) {
 					console.error('WebSocket message error:', error);
+					console.error('Raw data that caused error:', data.toString());
 					ws.send(JSON.stringify({ 
 						type: 'error', 
 						message: 'Invalid JSON message' 
@@ -48,33 +51,43 @@ class RFIDWebSocketServer {
 	}
 
 	handleMessage(ws, message) {
-		switch (message.type) {
-			case 'auth_device':
-			case 'device_auth': // Support both formats for compatibility
-				this.authenticateDevice(ws, message);
-				break;
-			case 'auth_admin':
-			case 'admin_auth': // Support both formats for compatibility
-				this.authenticateAdmin(ws, message);
-				break;
-			case 'heartbeat':
-			case 'ping': // Support ping/pong for compatibility
-				this.handleHeartbeat(ws, message);
-				break;
-			case 'rfid_scan':
-				this.handleRFIDScan(ws, message);
-				break;
-			case 'session_end':
-				this.handleSessionEnd(ws, message);
-				break;
-			case 'status_update':
-				this.handleStatusUpdate(ws, message);
-				break;
-			default:
-				ws.send(JSON.stringify({ 
-					type: 'error', 
-					message: `Unknown message type: ${message.type}` 
-				}));
+		try {
+			console.log('handleMessage called with type:', message.type);
+			switch (message.type) {
+				case 'auth_device':
+				case 'device_auth': // Support both formats for compatibility
+					this.authenticateDevice(ws, message);
+					break;
+				case 'auth_admin':
+				case 'admin_auth': // Support both formats for compatibility
+					this.authenticateAdmin(ws, message);
+					break;
+				case 'heartbeat':
+				case 'ping': // Support ping/pong for compatibility
+					this.handleHeartbeat(ws, message);
+					break;
+				case 'rfid_scan':
+					this.handleRFIDScan(ws, message);
+					break;
+				case 'session_end':
+					this.handleSessionEnd(ws, message);
+					break;
+				case 'status_update':
+					this.handleStatusUpdate(ws, message);
+					break;
+				default:
+					console.log('Unknown message type:', message.type);
+					ws.send(JSON.stringify({ 
+						type: 'error', 
+						message: `Unknown message type: ${message.type}` 
+					}));
+			}
+		} catch (error) {
+			console.error('Error in handleMessage:', error);
+			ws.send(JSON.stringify({ 
+				type: 'error', 
+				message: 'Internal server error' 
+			}));
 		}
 	}
 
@@ -194,154 +207,170 @@ class RFIDWebSocketServer {
 	}
 
 	handleRFIDScan(ws, message) {
-		if (!ws.isDevice || !ws.resourceId) {
-			ws.send(JSON.stringify({ 
-				type: 'error', 
-				message: 'Not authenticated as device' 
-			}));
-			return;
-		}
-
-		const { rfid, rfid_code } = message;
-		const rfidCode = rfid || rfid_code; // Support both parameter names
-		const resource = resourceDb.getByResourceId(ws.resourceId);
-		
-		if (!resource) {
-			ws.send(JSON.stringify({ 
-				type: 'access_denied', 
-				reason: 'Resource not found' 
-			}));
-			return;
-		}
-
-		// Check if resource is enabled
-		if (!resource.enabled) {
-			const log = logDb.create({
-				user_id: null,
-				resource_id: resource.id,
-				rfid: rfidCode,
-				success: false,
-				reason: 'Resource disabled'
-			});
-
-			ws.send(JSON.stringify({ 
-				type: 'access_denied', 
-				reason: 'Resource is currently disabled' 
-			}));
-			return;
-		}
-
-		// Find user by RFID
-		const user = userDb.getByRfid(rfidCode);
-		if (!user) {
-			const log = logDb.create({
-				user_id: null,
-				resource_id: resource.id,
-				rfid: rfidCode,
-				success: false,
-				reason: 'Unknown RFID'
-			});
-
-			ws.send(JSON.stringify({ 
-				type: 'access_denied', 
-				reason: 'Unknown RFID card' 
-			}));
-			return;
-		}
-
-		// Check if user is enabled
-		if (!user.enabled) {
-			const log = logDb.create({
-				user_id: user.id,
-				resource_id: resource.id,
-				rfid: rfidCode,
-				success: false,
-				reason: 'User disabled'
-			});
-
-			ws.send(JSON.stringify({ 
-				type: 'access_denied', 
-				reason: 'User account is currently disabled' 
-			}));
-			return;
-		}
-
-		// Check permissions
-		const hasAccess = permissionDb.hasAccess(user.id, resource.id);
-		if (!hasAccess) {
-			const log = logDb.create({
-				user_id: user.id,
-				resource_id: resource.id,
-				rfid: rfidCode,
-				success: false,
-				reason: 'No permission'
-			});
-
-			ws.send(JSON.stringify({ 
-				type: 'access_denied', 
-				reason: 'Access not granted for this resource' 
-			}));
-			return;
-		}
-
-		// Check for active session (for machines that require card present)
-		const activeSession = logDb.getActiveSession(resource.id);
-		
-		if (resource.type === 'machine') {
-			if (activeSession) {
-				// Same user ending their own session = Session completed
-				logDb.endSession(activeSession.id, null, user.id);
-				
+		try {
+			console.log('handleRFIDScan called with message:', JSON.stringify(message));
+			
+			if (!ws.isDevice || !ws.resourceId) {
 				ws.send(JSON.stringify({ 
-					type: 'session_ended',
-					user: user.name,
-					session_id: activeSession.id
+					type: 'error', 
+					message: 'Not authenticated as device' 
 				}));
+				return;
+			}
 
-				this.broadcastToAdmins({
-					type: 'session_ended',
-					resource_id: ws.resourceId,
-					user: user.name,
-					session_id: activeSession.id
+			const { rfid, rfid_code } = message;
+			const rfidCode = rfid || rfid_code; // Support both parameter names
+			console.log('Processing RFID code:', rfidCode);
+			
+			const resource = resourceDb.getByResourceId(ws.resourceId);
+			console.log('Found resource:', resource ? resource.name : 'null');
+			
+			if (!resource) {
+				ws.send(JSON.stringify({ 
+					type: 'access_denied', 
+					reason: 'Resource not found' 
+				}));
+				return;
+			}
+
+			// Check if resource is enabled
+			if (!resource.enabled) {
+				const log = logDb.create({
+					user_id: null,
+					resource_id: resource.id,
+					rfid: rfidCode,
+					success: false,
+					reason: 'Resource disabled'
 				});
-			} else {
-				// Start new session
-				const logResult = logDb.startSession(user.id, resource.id, rfidCode);
-				
+
 				ws.send(JSON.stringify({ 
-					type: 'session_started',
-					user: user.name,
-					session_id: logResult.lastInsertRowid
+					type: 'access_denied', 
+					reason: 'Resource is currently disabled' 
+				}));
+				return;
+			}
+
+			// Find user by RFID
+			const user = userDb.getByRfid(rfidCode);
+			console.log('Found user:', user ? user.name : 'null');
+			if (!user) {
+				const log = logDb.create({
+					user_id: null,
+					resource_id: resource.id,
+					rfid: rfidCode,
+					success: false,
+					reason: 'Unknown RFID'
+				});
+
+				ws.send(JSON.stringify({ 
+					type: 'access_denied', 
+					reason: 'Unknown RFID card' 
+				}));
+				return;
+			}
+
+			// Check if user is enabled
+			if (!user.enabled) {
+				const log = logDb.create({
+					user_id: user.id,
+					resource_id: resource.id,
+					rfid: rfidCode,
+					success: false,
+					reason: 'User disabled'
+				});
+
+				ws.send(JSON.stringify({ 
+					type: 'access_denied', 
+					reason: 'User account is currently disabled' 
+				}));
+				return;
+			}
+
+			// Check permissions
+			const hasAccess = permissionDb.hasAccess(user.id, resource.id);
+			console.log('User has access:', hasAccess);
+			if (!hasAccess) {
+				const log = logDb.create({
+					user_id: user.id,
+					resource_id: resource.id,
+					rfid: rfidCode,
+					success: false,
+					reason: 'No permission'
+				});
+
+				ws.send(JSON.stringify({ 
+					type: 'access_denied', 
+					reason: 'Access not granted for this resource' 
+				}));
+				return;
+			}
+
+			// Check for active session
+			const activeSession = logDb.getActiveSession(resource.id);
+			console.log('Active session:', activeSession ? activeSession.id : 'none');
+			
+			if (resource.type === 'machine') {
+				if (activeSession) {
+					// Same user ending their own session = Session completed
+					logDb.endSession(activeSession.id, null, user.id);
+					
+					ws.send(JSON.stringify({ 
+						type: 'session_ended',
+						user: user.name,
+						session_id: activeSession.id
+					}));
+
+					this.broadcastToAdmins({
+						type: 'session_ended',
+						resource_id: ws.resourceId,
+						user: user.name,
+						session_id: activeSession.id
+					});
+				} else {
+					// Start new session
+					const logResult = logDb.startSession(user.id, resource.id, rfidCode);
+					
+					ws.send(JSON.stringify({ 
+						type: 'session_started',
+						user: user.name,
+						session_id: logResult.lastInsertRowid
+					}));
+
+					this.broadcastToAdmins({
+						type: 'session_started',
+						resource_id: ws.resourceId,
+						user: user.name,
+						session_id: logResult.lastInsertRowid
+					});
+				}
+			} else {
+				// Simple access grant for doors
+				const log = logDb.create({
+					user_id: user.id,
+					resource_id: resource.id,
+					rfid: rfidCode,
+					success: true,
+					reason: 'Access granted'
+				});
+
+				ws.send(JSON.stringify({ 
+					type: 'access_granted',
+					user: user.name
 				}));
 
 				this.broadcastToAdmins({
-					type: 'session_started',
+					type: 'access_event',
 					resource_id: ws.resourceId,
 					user: user.name,
-					session_id: logResult.lastInsertRowid
+					success: true
 				});
 			}
-		} else {
-			// Simple access grant for doors
-			const log = logDb.create({
-				user_id: user.id,
-				resource_id: resource.id,
-				rfid: rfidCode,
-				success: true,
-				reason: 'Access granted'
-			});
-
+		} catch (error) {
+			console.error('Error in handleRFIDScan:', error);
 			ws.send(JSON.stringify({ 
-				type: 'access_granted',
-				user: user.name
+				type: 'error', 
+				message: 'Internal server error processing RFID scan' 
 			}));
-
-			this.broadcastToAdmins({
-				type: 'access_event',
-				resource_id: ws.resourceId,
-				user: user.name,
-				success: true
-			});
 		}
 	}
 

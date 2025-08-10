@@ -908,7 +908,7 @@ export const logDb = {
 			log.resource_id,
 			log.rfid,
 			log.success ? 1 : 0,
-			log.access_granted || log.success || false,
+			(log.access_granted || log.success) ? 1 : 0,
 			log.reason || '',
 			log.session_id || null,
 			log.session_start || null,
