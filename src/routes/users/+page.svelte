@@ -1,6 +1,10 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
+	import PageHeader from '$lib/components/PageHeader.svelte';
+	import Button from '$lib/components/Button.svelte';
+	import Modal from '$lib/components/Modal.svelte';
+	import Toggle from '$lib/components/Toggle.svelte';
 	
 	export let data;
 	export let form;
@@ -74,12 +78,6 @@
 		return rfid.toUpperCase();
 	}
 
-	function getStatusBadge(enabled) {
-		return enabled 
-			? { class: 'bg-green-100 text-green-800', text: 'Active' }
-			: { class: 'bg-red-100 text-red-800', text: 'Disabled' };
-	}
-
 	function getResourceCount(permissions) {
 		return permissions.length;
 	}
@@ -97,18 +95,16 @@
 
 <div class="px-4 py-6 sm:px-0">
 	<div class="border-4 border-dashed border-gray-200 rounded-lg p-4 sm:p-8">
-		<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 space-y-4 sm:space-y-0">
-			<div class="flex-1">
-				<h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Users</h1>
-				<p class="text-gray-600 mt-1">Manage user accounts and permissions</p>
+		<PageHeader 
+			title="Users" 
+			description="Manage user accounts and permissions"
+		>
+			<div slot="actions">
+				<Button variant="primary" on:click={openAddModal}>
+					Add User
+				</Button>
 			</div>
-			<button
-				on:click={openAddModal}
-				class="btn-primary text-white px-4 py-2 rounded-md text-sm font-medium"
-			>
-				Add User
-			</button>
-		</div>
+		</PageHeader>
 
 		<!-- Search Bar -->
 		<div class="mb-6">
@@ -158,12 +154,9 @@
 					{:else}
 						<h3 class="text-sm font-medium text-gray-900 mb-1">No users yet</h3>
 						<p class="text-sm text-gray-500 mb-4">Get started by adding your first user</p>
-						<button
-							on:click={openAddModal}
-							class="btn-primary text-white px-4 py-2 rounded-md text-sm font-medium"
-						>
+						<Button variant="primary" on:click={openAddModal}>
 							Add User
-						</button>
+						</Button>
 					{/if}
 				</div>
 			{:else}
@@ -258,18 +251,12 @@
 										{/if}
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
-										<label class="relative inline-flex items-center cursor-pointer">
-											<input
-												type="checkbox"
-												checked={user.enabled ?? true}
-												on:change={() => toggleUserStatus(user.id, user.enabled ?? true)}
-												class="sr-only peer"
-											/>
-											<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-											<span class="ml-3 text-sm font-medium text-gray-700">
-												{user.enabled ?? true ? 'Enabled' : 'Disabled'}
-											</span>
-										</label>
+										<Toggle
+											enabled={user.enabled ?? true}
+											onClick={() => toggleUserStatus(user.id, user.enabled ?? true)}
+											ariaLabel="{user.enabled ?? true ? 'Disable' : 'Enable'} {user.name}"
+											title="Enable/Disable User"
+										/>
 									</td>
 								</tr>
 							{/each}
@@ -282,104 +269,85 @@
 </div>
 
 <!-- Add User Modal -->
-{#if showAddModal}
-	<!-- svelte-ignore a11y-click-events-have-key-events -->
-	<!-- svelte-ignore a11y-no-static-element-interactions -->
-	<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" on:click={closeAddModal}>
-		<!-- svelte-ignore a11y-click-events-have-key-events -->
-		<!-- svelte-ignore a11y-no-static-element-interactions -->
-		<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" on:click|stopPropagation>
-			<h3 class="text-lg font-bold text-gray-900 mb-4">Add New User</h3>
-			<form method="POST" action="?/create" use:enhance on:submit={closeAddModal}>
-				<div class="mb-4">
-					<label for="name" class="block text-sm font-medium text-gray-700">Name</label>
-					<input
-						type="text"
-						id="name"
-						name="name"
-						required
-						class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-					/>
-				</div>
+<Modal isOpen={showAddModal} title="Add New User" on:close={closeAddModal}>
+	<form id="add-user-form" method="POST" action="?/create" use:enhance on:submit={closeAddModal}>
+		<div class="space-y-4">
+			<div>
+				<label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+				<input
+					type="text"
+					id="name"
+					name="name"
+					required
+					class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm"
+				/>
+			</div>
 
-				<div class="mb-4">
-					<label for="rfid" class="block text-sm font-medium text-gray-700">RFID (8 hex characters)</label>
-					<input
-						type="text"
-						id="rfid"
-						name="rfid"
-						required
-						maxlength="8"
-						placeholder="A1B2C3D4"
-						class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono"
-					/>
-				</div>
+			<div>
+				<label for="rfid" class="block text-sm font-medium text-gray-700">RFID (8 hex characters)</label>
+				<input
+					type="text"
+					id="rfid"
+					name="rfid"
+					required
+					maxlength="8"
+					placeholder="A1B2C3D4"
+					class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm font-mono"
+				/>
+			</div>
 
-				<div class="mb-4">
-					<label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-					<input
-						type="email"
-						id="email"
-						name="email"
-						required
-						class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-					/>
-				</div>
+			<div>
+				<label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+				<input
+					type="email"
+					id="email"
+					name="email"
+					required
+					class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm"
+				/>
+			</div>
 
-				<div class="mb-4">
-					<fieldset>
-						<legend class="block text-sm font-medium text-gray-700 mb-2">Resource Access</legend>
-						<div class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
-							{#each data.resources as resource}
-								<label class="flex items-center">
-									<input
-										type="checkbox"
-										name="resource_permissions"
-										value={resource.id}
-										class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-									/>
-									<span class="ml-2 text-sm text-gray-700">
-										{resource.name} ({resource.type})
-									</span>
-								</label>
-							{/each}
-						</div>
-					</fieldset>
-				</div>
-
-				<div class="flex justify-end space-x-2">
-					<button
-						type="button"
-						on:click={closeAddModal}
-						class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-					>
-						Cancel
-					</button>
-					<button
-						type="submit"
-						class="btn-primary px-4 py-2 text-sm font-medium text-white rounded-md"
-					>
-						Add User
-					</button>
-				</div>
-			</form>
+			<div>
+				<fieldset>
+					<legend class="block text-sm font-medium text-gray-700 mb-2">Resource Access</legend>
+					<div class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
+						{#each data.resources as resource}
+							<label class="flex items-center">
+								<input
+									type="checkbox"
+									name="resource_permissions"
+									value={resource.id}
+									class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+								/>
+								<span class="ml-2 text-sm text-gray-700">
+									{resource.name} ({resource.type})
+								</span>
+							</label>
+						{/each}
+					</div>
+				</fieldset>
+			</div>
 		</div>
+	</form>
+	
+	<div slot="footer" class="flex flex-col sm:flex-row gap-3 sm:justify-end">
+		<Button variant="secondary" on:click={closeAddModal} fullWidth class="sm:w-auto">
+			Cancel
+		</Button>
+		<Button variant="primary" type="submit" form="add-user-form" fullWidth class="sm:w-auto">
+			Add User
+		</Button>
 	</div>
-{/if}
+</Modal>
 
 <!-- Edit User Modal -->
-{#if editingUser}
-	<!-- svelte-ignore a11y-click-events-have-key-events -->
-	<!-- svelte-ignore a11y-no-static-element-interactions -->
-	<div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" on:click={closeEditModal}>
-		<!-- svelte-ignore a11y-click-events-have-key-events -->
-		<!-- svelte-ignore a11y-no-static-element-interactions -->
-		<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" on:click|stopPropagation>
-			<h3 class="text-lg font-bold text-gray-900 mb-4">Edit User</h3>
-			<form method="POST" action="?/update" use:enhance on:submit={closeEditModal}>
-				<input type="hidden" name="id" value={editingUser.id} />
-				
-				<div class="mb-4">
+<Modal isOpen={editingUser !== null} title="Edit User" on:close={closeEditModal}>
+	{#if editingUser}
+		<form id="edit-user-form" method="POST" action="?/update" use:enhance on:submit={closeEditModal}>
+			<input type="hidden" name="id" value={editingUser.id} />
+			
+			<div class="space-y-4">
+				<div>
 					<label for="edit_name" class="block text-sm font-medium text-gray-700">Name</label>
 					<input
 						type="text"
@@ -387,11 +355,11 @@
 						name="name"
 						value={editingUser.name}
 						required
-						class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+						class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm"
 					/>
 				</div>
 
-				<div class="mb-4">
+				<div>
 					<label for="edit_rfid" class="block text-sm font-medium text-gray-700">RFID (8 hex characters)</label>
 					<input
 						type="text"
@@ -400,11 +368,11 @@
 						value={editingUser.rfid}
 						required
 						maxlength="8"
-						class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono"
+						class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm font-mono"
 					/>
 				</div>
 
-				<div class="mb-4">
+				<div>
 					<label for="edit_email" class="block text-sm font-medium text-gray-700">Email</label>
 					<input
 						type="email"
@@ -412,11 +380,11 @@
 						name="email"
 						value={editingUser.email}
 						required
-						class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+						class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm"
 					/>
 				</div>
 
-				<div class="mb-4">
+				<div>
 					<fieldset>
 						<legend class="block text-sm font-medium text-gray-700 mb-2">Resource Access</legend>
 						<div class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
@@ -437,23 +405,37 @@
 						</div>
 					</fieldset>
 				</div>
-
-				<div class="flex justify-end space-x-2">
-					<button
-						type="button"
-						on:click={closeEditModal}
-						class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-					>
-						Cancel
-					</button>
-					<button
-						type="submit"
-						class="btn-primary px-4 py-2 text-sm font-medium text-white rounded-md"
-					>
-						Update User
-					</button>
-				</div>
-			</form>
-		</div>
+			</div>
+		</form>
+	{/if}
+	
+	<div slot="footer" class="flex flex-col sm:flex-row gap-3 sm:justify-between">
+		{#if editingUser}
+			<Button variant="danger" on:click={() => {
+				if (confirm(`Are you sure you want to delete "${editingUser.name}"? This action cannot be undone.`)) {
+					const form = document.createElement('form');
+					form.method = 'POST';
+					form.action = '?/delete';
+					const input = document.createElement('input');
+					input.type = 'hidden';
+					input.name = 'id';
+					input.value = editingUser.id;
+					form.appendChild(input);
+					document.body.appendChild(form);
+					form.submit();
+					closeEditModal();
+				}
+			}} fullWidth class="sm:w-auto order-3 sm:order-1">
+				Delete
+			</Button>
+			<div class="flex flex-col sm:flex-row gap-3 order-1 sm:order-2">
+				<Button variant="secondary" on:click={closeEditModal} fullWidth class="sm:w-auto">
+					Cancel
+				</Button>
+				<Button variant="primary" type="submit" form="edit-user-form" fullWidth class="sm:w-auto">
+					Update User
+				</Button>
+			</div>
+		{/if}
 	</div>
-{/if}
+</Modal>

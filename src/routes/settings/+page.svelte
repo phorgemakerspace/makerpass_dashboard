@@ -1,6 +1,7 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { browser } from '$app/environment';
+	import TabNavigation from '$lib/components/TabNavigation.svelte';
 	
 	export let data;
 	export let form;
@@ -101,8 +102,46 @@
 	// Tab management
 	let activeTab = 'api';
 	
-	function setActiveTab(tab) {
-		activeTab = tab;
+	$: tabs = [
+		{ 
+			id: 'api', 
+			label: 'API',
+			icon: '<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>'
+		},
+		{ 
+			id: 'theme', 
+			label: 'Theme',
+			icon: '<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" /></svg>'
+		},
+		{ 
+			id: 'data', 
+			label: 'Data',
+			icon: '<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>'
+		},
+		{ 
+			id: 'maintenance', 
+			label: 'Maintenance',
+			icon: '<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>'
+		},
+		{ 
+			id: 'reset', 
+			label: 'Reset',
+			icon: '<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>'
+		},
+		{ 
+			id: 'email', 
+			label: 'Email',
+			icon: '<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>'
+		},
+		{ 
+			id: 'stripe', 
+			label: 'Stripe',
+			icon: '<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>'
+		}
+	];
+	
+	function handleTabChange(event) {
+		activeTab = event.detail.activeTab;
 	}
 
 	// Maintenance threshold slider
@@ -154,136 +193,24 @@
 			<div class="lg:w-64 flex-shrink-0">
 				<!-- Mobile horizontal tabs -->
 				<div class="lg:hidden mb-4">
-					<div class="flex overflow-x-auto border-b border-gray-200">
-						<button
-							type="button"
-							on:click={() => setActiveTab('api')}
-							class="flex-shrink-0 px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'api' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-						>
-							API
-						</button>
-						<button
-							type="button"
-							on:click={() => setActiveTab('theme')}
-							class="flex-shrink-0 px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'theme' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-						>
-							Theme
-						</button>
-						<button
-							type="button"
-							on:click={() => setActiveTab('data')}
-							class="flex-shrink-0 px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'data' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-						>
-							Data
-						</button>
-						<button
-							type="button"
-							on:click={() => setActiveTab('maintenance')}
-							class="flex-shrink-0 px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'maintenance' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-						>
-							Maintenance
-						</button>
-						<button
-							type="button"
-							on:click={() => setActiveTab('reset')}
-							class="flex-shrink-0 px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'reset' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-						>
-							Reset
-						</button>
-						<button
-							type="button"
-							on:click={() => setActiveTab('email')}
-							class="flex-shrink-0 px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'email' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-						>
-							Email
-						</button>
-						<button
-							type="button"
-							on:click={() => setActiveTab('stripe')}
-							class="flex-shrink-0 px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'stripe' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-						>
-							Stripe
-						</button>
-					</div>
+					<TabNavigation 
+						{tabs} 
+						{activeTab} 
+						orientation="horizontal"
+						variant="underline"
+						on:change={handleTabChange}
+					/>
 				</div>
 
 				<!-- Desktop vertical tabs -->
 				<div class="hidden lg:block">
-					<nav class="space-y-1" aria-label="Settings navigation">
-						<button
-							type="button"
-							on:click={() => setActiveTab('api')}
-							class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {activeTab === 'api' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}"
-						>
-							<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-							</svg>
-							API Configuration
-						</button>
-						<button
-							type="button"
-							on:click={() => setActiveTab('theme')}
-							class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {activeTab === 'theme' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}"
-						>
-							<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l7-7 3 3-7 7-3-3z" />
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 13l-1.5-7.5L2.036 3.732l1.5 7.5L18 13z" />
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.5 5.5l-14 14" />
-							</svg>
-							Theme Configuration
-						</button>
-						<button
-							type="button"
-							on:click={() => setActiveTab('data')}
-							class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {activeTab === 'data' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}"
-						>
-							<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-							</svg>
-							Data Retention
-						</button>
-						<button
-							type="button"
-							on:click={() => setActiveTab('maintenance')}
-							class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {activeTab === 'maintenance' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}"
-						>
-							<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-							</svg>
-							Maintenance Settings
-						</button>
-						<button
-							type="button"
-							on:click={() => setActiveTab('reset')}
-							class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {activeTab === 'reset' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}"
-						>
-							<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-							</svg>
-							Reset Settings
-						</button>
-						<button
-							type="button"
-							on:click={() => setActiveTab('email')}
-							class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {activeTab === 'email' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}"
-						>
-							<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-							</svg>
-							Email Settings
-						</button>
-						<button
-							type="button"
-							on:click={() => setActiveTab('stripe')}
-							class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {activeTab === 'stripe' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}"
-						>
-							<svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-							</svg>
-							Stripe Integration
-						</button>
-					</nav>
+					<TabNavigation 
+						{tabs} 
+						{activeTab} 
+						orientation="vertical"
+						variant="pills"
+						on:change={handleTabChange}
+					/>
 				</div>
 			</div>
 

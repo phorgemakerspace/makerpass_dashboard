@@ -1,6 +1,9 @@
 <script>
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import PageHeader from '$lib/components/PageHeader.svelte';
+	import Button from '$lib/components/Button.svelte';
 	
 	export let data;
 	
@@ -34,12 +37,6 @@
 	
 	function formatTimestamp(timestamp) {
 		return new Date(timestamp).toLocaleString();
-	}
-	
-	function getStatusBadgeClass(success) {
-		return success 
-			? 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800'
-			: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800';
 	}
 	
 	function getReasonText(reason) {
@@ -95,20 +92,16 @@
 
 <div class="px-4 py-6 sm:px-0">
 	<div class="border-4 border-dashed border-gray-200 rounded-lg p-4 sm:p-8">
-		<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
-			<div>
-				<h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Access Logs</h1>
-				<p class="text-gray-600 mt-2 text-sm sm:text-base">View and filter access activity across all resources</p>
-			</div>
-			<div class="flex space-x-2">
-				<button
-					on:click={exportLogs}
-					class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-md text-sm font-medium"
-				>
+		<PageHeader 
+			title="Access Logs" 
+			description="View and filter access activity across all resources"
+		>
+			<div slot="actions" class="flex space-x-2">
+				<Button variant="secondary" on:click={exportLogs}>
 					Export CSV
-				</button>
+				</Button>
 			</div>
-		</div>
+		</PageHeader>
 		
 		<!-- Filters -->
 		<div class="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
@@ -178,18 +171,12 @@
 			</div>
 			
 			<div class="mt-4 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-				<button
-					on:click={applyFilters}
-					class="btn-primary text-white px-4 py-2 rounded-md text-sm font-medium w-full sm:w-auto"
-				>
+				<Button variant="primary" on:click={applyFilters} class="w-full sm:w-auto">
 					Apply Filters
-				</button>
-				<button
-					on:click={clearFilters}
-					class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-md text-sm font-medium w-full sm:w-auto"
-				>
+				</Button>
+				<Button variant="secondary" on:click={clearFilters} class="w-full sm:w-auto">
 					Clear Filters
-				</button>
+				</Button>
 			</div>
 		</div>
 
@@ -203,9 +190,7 @@
 							<li class="px-4 py-4">
 								<div class="space-y-2">
 									<div class="flex items-center justify-between">
-										<span class={getStatusBadgeClass(log.success)}>
-											{log.success ? 'Success' : 'Failed'}
-										</span>
+										<StatusBadge success={log.success} />
 										<span class="text-xs text-gray-500">
 											{formatTimestamp(log.timestamp)}
 										</span>
@@ -258,9 +243,7 @@
 										{formatTimestamp(log.timestamp)}
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
-										<span class={getStatusBadgeClass(log.success)}>
-											{log.success ? 'Success' : 'Failed'}
-										</span>
+										<StatusBadge success={log.success} />
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
 										<div class="text-sm font-medium text-gray-900">

@@ -140,7 +140,7 @@ fi
 # Step 3: Restart PM2
 print_status "Checking PM2 status..."
 
-# Get the PM2 app name (assuming it's the directory name or 'makerpass-dashboard')
+# Get the PM2 app name (assuming it's the directory name or 'makerpass')
 APP_NAME=${PWD##*/}  # Get current directory name
 PM2_APP_NAME="makerpass"
 

@@ -1,6 +1,8 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import Modal from '$lib/components/Modal.svelte';
+	import Button from '$lib/components/Button.svelte';
 	
 	export let data;
 	
@@ -353,12 +355,14 @@
 									
 									<!-- Action buttons -->
 									<div class="flex items-center justify-end space-x-2 sm:ml-4 pt-2 sm:pt-0">
-										<button
+										<Button
+											variant="primary"
+											size="small"
 											on:click={() => openLogMaintenanceModal(task.resource, task)}
-											class="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded whitespace-nowrap"
+											class="whitespace-nowrap"
 										>
 											Complete Task
-										</button>
+										</Button>
 									</div>
 								</div>
 							</div>
@@ -448,224 +452,183 @@
 </div>
 
 <!-- Log Maintenance Modal -->
-{#if showLogMaintenanceModal}
-	<div 
-		class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" 
-		role="dialog" 
-		aria-modal="true"
-		tabindex="-1"
-		on:click={closeModal} 
-		on:keydown={(e) => e.key === 'Escape' && closeModal()}
+<Modal 
+	isOpen={showLogMaintenanceModal} 
+	title={selectedInterval ? `Log Maintenance: ${selectedInterval.name}` : !selectedResource ? 'Log General Maintenance' : 'Log Maintenance'}
+	on:close={closeModal}
+>
+	<form 
+		id="log-maintenance-form"
+		method="POST" 
+		action={selectedResource ? `/resources/${selectedResource.resource_id}?/logMaintenance` : '?/logGeneralMaintenance'}
+		class="space-y-4"
+		use:enhance={({ formElement, formData, action, cancel }) => {
+			return async ({ result, update }) => {
+				if (result.type === 'success') {
+					closeModal();
+					// Invalidate all data to refresh the page
+					await invalidateAll();
+				}
+				await update();
+			};
+		}}
 	>
-		<div 
-			class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" 
-			role="dialog"
-			tabindex="-1"
-			on:click|stopPropagation 
-			on:keydown|stopPropagation
-		>
-			<form 
-				method="POST" 
-				action={selectedResource ? `/resources/${selectedResource.resource_id}?/logMaintenance` : '?/logGeneralMaintenance'}
-				class="space-y-4"
-				use:enhance={({ formElement, formData, action, cancel }) => {
-					return async ({ result, update }) => {
-						if (result.type === 'success') {
-							closeModal();
-							// Invalidate all data to refresh the page
-							await invalidateAll();
-						}
-						await update();
-					};
-				}}
+		<!-- Machine Selection (for general maintenance) -->
+		{#if !selectedResource}
+			<div>
+				<label for="resource_id" class="block text-sm font-medium text-gray-700 mb-1">
+					Select Machine
+				</label>
+				<select 
+					id="resource_id" 
+					name="resource_id" 
+					class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+					on:change={handleMachineSelection}
+					required
+				>
+					<option value="">Choose a machine...</option>
+					{#each data.maintenanceData as { resource }}
+						<option value={resource.resource_id}>{resource.name} ({resource.category})</option>
+					{/each}
+				</select>
+			</div>
+		{:else}
+			<div class="text-sm text-gray-600 mb-4">
+				<strong>{selectedResource.name}</strong> • {selectedResource.resource_id}
+			</div>
+			<input type="hidden" name="resource_id" value={selectedResource.resource_id} />
+		{/if}
+
+		<div>
+			<label for="interval_id" class="block text-sm font-medium text-gray-700 mb-1">
+				Maintenance Interval (Optional)
+			</label>
+			{#if selectedInterval}
+				<!-- Pre-selected interval (read-only display) -->
+				<div class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
+					<div class="flex justify-between items-center">
+						<span class="font-medium text-gray-900">{selectedInterval.name}</span>
+						<button
+							type="button"
+							on:click={() => selectedInterval = null}
+							class="text-sm text-blue-600 hover:text-blue-800"
+						>
+							Change
+						</button>
+					</div>
+					<p class="text-xs text-gray-500 mt-1">
+						{selectedInterval.resource.name} • Every {formatIntervalInOriginalUnit(selectedInterval.interval_value, selectedInterval.display_unit)}
+					</p>
+				</div>
+				<input type="hidden" name="interval_id" value={selectedInterval.id} />
+			{:else if selectedResource}
+				<!-- Dropdown to select interval for specific machine -->
+				<select 
+					id="interval_id" 
+					name="interval_id" 
+					class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+				>
+					<option value="">General maintenance (not tied to specific interval)</option>
+					{#each data.maintenanceData.find(d => d.resource.resource_id === selectedResource.resource_id)?.intervals || [] as interval}
+						<option value={interval.id}>{interval.name}</option>
+					{/each}
+				</select>
+			{:else}
+				<!-- No interval selection when no machine is selected yet -->
+				<div class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500">
+					Select a machine first to choose an interval (optional)
+				</div>
+				<input type="hidden" name="interval_id" value="" />
+			{/if}
+		</div>
+
+		<div>
+			<label for="maintenance_type" class="block text-sm font-medium text-gray-700 mb-1">
+				Maintenance Type
+			</label>
+			<select 
+				id="maintenance_type" 
+				name="maintenance_type" 
+				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+				required
 			>
-				<div class="flex justify-between items-center mb-4">
-					<h3 class="text-lg font-semibold text-gray-900">
-						{#if selectedInterval}
-							Log Maintenance: {selectedInterval.name}
-						{:else if !selectedResource}
-							Log General Maintenance
-						{:else}
-							Log Maintenance
-						{/if}
-					</h3>
-					<button 
-						type="button" 
-						on:click={closeModal} 
-						class="text-gray-400 hover:text-gray-600"
-						aria-label="Close modal"
+				<option value="scheduled">Scheduled</option>
+				<option value="emergency">Emergency</option>
+				<option value="preventive">Preventive</option>
+				<option value="repair">Repair</option>
+			</select>
+		</div>
+
+		<!-- User Selection Field -->
+		<div class="relative">
+			<label for="performed_by" class="block text-sm font-medium text-gray-700 mb-1">
+				Performed By (Optional)
+			</label>
+			<div class="relative">
+				<input 
+					type="text"
+					placeholder="Search for user or leave blank for admin..."
+					class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+					bind:value={userSearch}
+					on:input={handleUserSearchInput}
+					on:focus={() => userSearch.length > 0 && searchUsers()}
+					autocomplete="off"
+				/>
+				{#if selectedUser}
+					<button
+						type="button"
+						on:click={clearUserSelection}
+						class="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
+						aria-label="Clear selection"
 					>
-						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
 						</svg>
 					</button>
-				</div>
-				
-				<!-- Machine Selection (for general maintenance) -->
-				{#if !selectedResource}
-					<div>
-						<label for="resource_id" class="block text-sm font-medium text-gray-700 mb-1">
-							Select Machine
-						</label>
-						<select 
-							id="resource_id" 
-							name="resource_id" 
-							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-							on:change={handleMachineSelection}
-							required
-						>
-							<option value="">Choose a machine...</option>
-							{#each data.maintenanceData as { resource }}
-								<option value={resource.resource_id}>{resource.name} ({resource.category})</option>
-							{/each}
-						</select>
-					</div>
-				{:else}
-					<div class="text-sm text-gray-600 mb-4">
-						<strong>{selectedResource.name}</strong> • {selectedResource.resource_id}
-					</div>
-					<input type="hidden" name="resource_id" value={selectedResource.resource_id} />
 				{/if}
-
-				<div>
-					<label for="interval_id" class="block text-sm font-medium text-gray-700 mb-1">
-						Maintenance Interval (Optional)
-					</label>
-					{#if selectedInterval}
-						<!-- Pre-selected interval (read-only display) -->
-						<div class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
-							<div class="flex justify-between items-center">
-								<span class="font-medium text-gray-900">{selectedInterval.name}</span>
-								<button
-									type="button"
-									on:click={() => selectedInterval = null}
-									class="text-sm text-blue-600 hover:text-blue-800"
-								>
-									Change
-								</button>
-							</div>
-							<p class="text-xs text-gray-500 mt-1">
-								{selectedInterval.resource.name} • Every {formatIntervalInOriginalUnit(selectedInterval.interval_value, selectedInterval.display_unit)}
-							</p>
-						</div>
-						<input type="hidden" name="interval_id" value={selectedInterval.id} />
-					{:else if selectedResource}
-						<!-- Dropdown to select interval for specific machine -->
-						<select 
-							id="interval_id" 
-							name="interval_id" 
-							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+			</div>
+			
+			<!-- User dropdown -->
+			{#if showUserDropdown && userSearchResults.length > 0}
+				<div class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+					{#each userSearchResults as user}
+						<button
+							type="button"
+							class="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+							on:click={() => selectUser(user)}
 						>
-							<option value="">General maintenance (not tied to specific interval)</option>
-							{#each data.maintenanceData.find(d => d.resource.resource_id === selectedResource.resource_id)?.intervals || [] as interval}
-								<option value={interval.id}>{interval.name}</option>
-							{/each}
-						</select>
-					{:else}
-						<!-- No interval selection when no machine is selected yet -->
-						<div class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500">
-							Select a machine first to choose an interval (optional)
-						</div>
-						<input type="hidden" name="interval_id" value="" />
-					{/if}
+							<div class="font-medium text-gray-900">{user.name}</div>
+							<div class="text-sm text-gray-500">{user.email}</div>
+						</button>
+					{/each}
 				</div>
-
-				<div>
-					<label for="maintenance_type" class="block text-sm font-medium text-gray-700 mb-1">
-						Maintenance Type
-					</label>
-					<select 
-						id="maintenance_type" 
-						name="maintenance_type" 
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-						required
-					>
-						<option value="scheduled">Scheduled</option>
-						<option value="emergency">Emergency</option>
-						<option value="preventive">Preventive</option>
-						<option value="repair">Repair</option>
-					</select>
-				</div>
-
-				<!-- User Selection Field -->
-				<div class="relative">
-					<label for="performed_by" class="block text-sm font-medium text-gray-700 mb-1">
-						Performed By (Optional)
-					</label>
-					<div class="relative">
-						<input 
-							type="text"
-							placeholder="Search for user or leave blank for admin..."
-							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-							bind:value={userSearch}
-							on:input={handleUserSearchInput}
-							on:focus={() => userSearch.length > 0 && searchUsers()}
-							autocomplete="off"
-						/>
-						{#if selectedUser}
-							<button
-								type="button"
-								on:click={clearUserSelection}
-								class="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
-								aria-label="Clear selection"
-							>
-								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-								</svg>
-							</button>
-						{/if}
-					</div>
-					
-					<!-- User dropdown -->
-					{#if showUserDropdown && userSearchResults.length > 0}
-						<div class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
-							{#each userSearchResults as user}
-								<button
-									type="button"
-									class="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
-									on:click={() => selectUser(user)}
-								>
-									<div class="font-medium text-gray-900">{user.name}</div>
-									<div class="text-sm text-gray-500">{user.email}</div>
-								</button>
-							{/each}
-						</div>
-					{/if}
-					
-					<!-- Hidden input for form submission -->
-					<input type="hidden" name="performed_by" value={selectedUser?.id || ''} />
-				</div>
-
-				<div>
-					<label for="notes" class="block text-sm font-medium text-gray-700 mb-1">
-						Notes
-					</label>
-					<textarea 
-						id="notes" 
-						name="notes" 
-						rows="3"
-						placeholder="Describe what maintenance was performed..."
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-						required
-					></textarea>
-				</div>
-
-				<div class="flex space-x-3 pt-4">
-					<button 
-						type="submit" 
-						class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium"
-					>
-						Log Maintenance
-					</button>
-					<button 
-						type="button" 
-						on:click={closeModal}
-						class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-md font-medium"
-					>
-						Cancel
-					</button>
-				</div>
-			</form>
+			{/if}
+			
+			<!-- Hidden input for form submission -->
+			<input type="hidden" name="performed_by" value={selectedUser?.id || ''} />
 		</div>
+
+		<div>
+			<label for="notes" class="block text-sm font-medium text-gray-700 mb-1">
+				Notes
+			</label>
+			<textarea 
+				id="notes" 
+				name="notes" 
+				rows="3"
+				placeholder="Describe what maintenance was performed..."
+				class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+				required
+			></textarea>
+		</div>
+	</form>
+
+	<div slot="footer" class="flex flex-col sm:flex-row gap-3 sm:justify-end">
+		<Button variant="secondary" on:click={closeModal} fullWidth class="sm:w-auto">
+			Cancel
+		</Button>
+		<Button variant="primary" type="submit" form="log-maintenance-form" fullWidth class="sm:w-auto">
+			Log Maintenance
+		</Button>
 	</div>
-{/if}
+</Modal>

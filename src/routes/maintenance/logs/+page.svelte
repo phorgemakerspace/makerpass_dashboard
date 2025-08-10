@@ -2,6 +2,9 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
+	import Button from '$lib/components/Button.svelte';
+	import Modal from '$lib/components/Modal.svelte';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	
 	export let data;
 	
@@ -94,20 +97,19 @@
 				{ label: 'Logs' }
 			]} />
 			
-			<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
-				<div>
-					<h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Maintenance Logs</h1>
-					<p class="text-gray-600 mt-2 text-sm sm:text-base">View and filter maintenance activity across all machines</p>
-				</div>
-				<div class="flex space-x-2">
-					<button
+			<PageHeader
+				title="Maintenance Logs"
+				description="View and filter maintenance activity across all machines"
+			>
+				<div slot="actions" class="flex space-x-2">
+					<Button
+						variant="secondary"
 						on:click={exportLogs}
-						class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-md text-sm font-medium"
 					>
 						Export CSV
-					</button>
+					</Button>
 				</div>
-			</div>
+			</PageHeader>
 		</div>
 
 		<!-- Filters -->
@@ -201,18 +203,18 @@
 			</div>
 
 			<div class="flex space-x-2">
-				<button
+				<Button
+					variant="primary"
 					on:click={applyFilters}
-					class="btn-primary px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
 				>
 					Apply Filters
-				</button>
-				<button
+				</Button>
+				<Button
+					variant="secondary"
 					on:click={clearFilters}
-					class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-md text-sm font-medium"
 				>
 					Clear All
-				</button>
+				</Button>
 			</div>
 		</div>
 
@@ -308,9 +310,13 @@
 				<p class="text-sm text-gray-400 mb-4">
 					{#if Object.values(data.filters).some(v => v)}
 						Try adjusting your filters or
-						<button on:click={clearFilters} class="text-blue-600 hover:text-blue-800 underline">
+						<Button
+							variant="link"
+							size="sm"
+							on:click={clearFilters}
+						>
 							clear all filters
-						</button>
+						</Button>
 					{:else}
 						Log your first maintenance activity to see it here
 					{/if}
@@ -321,105 +327,80 @@
 </div>
 
 <!-- Maintenance Log Detail Modal -->
-{#if showLogModal && selectedLog}
-	<div 
-		class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" 
-		role="dialog" 
-		aria-modal="true"
-		tabindex="-1"
-		on:click={closeLogModal} 
-		on:keydown={(e) => e.key === 'Escape' && closeLogModal()}
-	>
-		<div 
-			class="relative top-20 mx-auto p-6 border max-w-2xl shadow-lg rounded-md bg-white" 
-			role="dialog"
-			tabindex="-1"
-			on:click|stopPropagation 
-			on:keydown|stopPropagation
-		>
-			<div class="flex justify-between items-center mb-6">
-				<h3 class="text-lg font-semibold text-gray-900">Maintenance Log Details</h3>
-				<button 
-					type="button" 
-					on:click={closeLogModal} 
-					class="text-gray-400 hover:text-gray-600"
-					aria-label="Close modal"
-				>
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-					</svg>
-				</button>
-			</div>
-			
-			<div class="space-y-4">
-				<!-- Date and Time -->
-				<div class="flex justify-between items-start">
-					<div>
-						<h4 class="text-sm font-medium text-gray-900 mb-1">Date & Time</h4>
-						<p class="text-sm text-gray-600">{formatDateTime(selectedLog.maintenance_date)}</p>
-					</div>
-					<span class="inline-flex px-3 py-1 text-sm font-medium rounded-full
-						{selectedLog.maintenance_type === 'emergency' ? 'bg-red-100 text-red-700' :
-						selectedLog.maintenance_type === 'repair' ? 'bg-orange-100 text-orange-700' :
-						selectedLog.maintenance_type === 'preventive' ? 'bg-blue-100 text-blue-700' :
-						'bg-green-100 text-green-700'}
-					">
-						{selectedLog.maintenance_type.charAt(0).toUpperCase() + selectedLog.maintenance_type.slice(1)}
-					</span>
+<Modal
+	bind:isOpen={showLogModal}
+	title="Maintenance Log Details"
+	size="xl"
+	on:close={closeLogModal}
+>
+	{#if selectedLog}
+		<div class="space-y-4">
+			<!-- Date and Time -->
+			<div class="flex justify-between items-start">
+				<div>
+					<h4 class="text-sm font-medium text-gray-900 mb-1">Date & Time</h4>
+					<p class="text-sm text-gray-600">{formatDateTime(selectedLog.maintenance_date)}</p>
 				</div>
+				<span class="inline-flex px-3 py-1 text-sm font-medium rounded-full
+					{selectedLog.maintenance_type === 'emergency' ? 'bg-red-100 text-red-700' :
+					selectedLog.maintenance_type === 'repair' ? 'bg-orange-100 text-orange-700' :
+					selectedLog.maintenance_type === 'preventive' ? 'bg-blue-100 text-blue-700' :
+					'bg-green-100 text-green-700'}
+				">
+					{selectedLog.maintenance_type.charAt(0).toUpperCase() + selectedLog.maintenance_type.slice(1)}
+				</span>
+			</div>
 
-				<!-- Machine Information -->
-				<div class="border-t pt-4">
-					<h4 class="text-sm font-medium text-gray-900 mb-2">Machine</h4>
-					<div class="bg-gray-50 rounded-md p-3">
-						<div class="flex justify-between items-center">
-							<div>
-								<p class="text-sm font-medium text-gray-900">{selectedLog.resource_name}</p>
-								<p class="text-xs text-gray-500">{selectedLog.resource_category} • {selectedLog.resource_code}</p>
-							</div>
-							<a 
-								href="/resources/{selectedLog.resource_code}" 
-								class="text-blue-600 hover:text-blue-800 text-sm font-medium"
-								on:click={closeLogModal}
-							>
-								View Machine →
-							</a>
+			<!-- Machine Information -->
+			<div class="border-t pt-4">
+				<h4 class="text-sm font-medium text-gray-900 mb-2">Machine</h4>
+				<div class="bg-gray-50 rounded-md p-3">
+					<div class="flex justify-between items-center">
+						<div>
+							<p class="text-sm font-medium text-gray-900">{selectedLog.resource_name}</p>
+							<p class="text-xs text-gray-500">{selectedLog.resource_category} • {selectedLog.resource_code}</p>
 						</div>
-					</div>
-				</div>
-
-				<!-- Maintenance Interval -->
-				{#if selectedLog.interval_name}
-					<div class="border-t pt-4">
-						<h4 class="text-sm font-medium text-gray-900 mb-2">Maintenance Interval</h4>
-						<p class="text-sm text-gray-600 bg-blue-50 rounded-md p-3">{selectedLog.interval_name}</p>
-					</div>
-				{/if}
-
-				<!-- Performed By -->
-				<div class="border-t pt-4">
-					<h4 class="text-sm font-medium text-gray-900 mb-2">Performed By</h4>
-					<p class="text-sm text-gray-600">{selectedLog.performed_by_name || 'Admin'}</p>
-				</div>
-
-				<!-- Notes -->
-				<div class="border-t pt-4">
-					<h4 class="text-sm font-medium text-gray-900 mb-2">Notes</h4>
-					<div class="bg-gray-50 rounded-md p-4">
-						<p class="text-sm text-gray-700 whitespace-pre-wrap">{selectedLog.notes}</p>
+						<a 
+							href="/resources/{selectedLog.resource_code}" 
+							class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+							on:click={closeLogModal}
+						>
+							View Machine →
+						</a>
 					</div>
 				</div>
 			</div>
 
-			<div class="flex justify-end pt-6 border-t mt-6">
-				<button 
-					type="button" 
-					on:click={closeLogModal}
-					class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-md font-medium"
-				>
-					Close
-				</button>
+			<!-- Maintenance Interval -->
+			{#if selectedLog.interval_name}
+				<div class="border-t pt-4">
+					<h4 class="text-sm font-medium text-gray-900 mb-2">Maintenance Interval</h4>
+					<p class="text-sm text-gray-600 bg-blue-50 rounded-md p-3">{selectedLog.interval_name}</p>
+				</div>
+			{/if}
+
+			<!-- Performed By -->
+			<div class="border-t pt-4">
+				<h4 class="text-sm font-medium text-gray-900 mb-2">Performed By</h4>
+				<p class="text-sm text-gray-600">{selectedLog.performed_by_name || 'Admin'}</p>
+			</div>
+
+			<!-- Notes -->
+			<div class="border-t pt-4">
+				<h4 class="text-sm font-medium text-gray-900 mb-2">Notes</h4>
+				<div class="bg-gray-50 rounded-md p-4">
+					<p class="text-sm text-gray-700 whitespace-pre-wrap">{selectedLog.notes}</p>
+				</div>
 			</div>
 		</div>
+	{/if}
+	
+	<div slot="footer">
+		<Button
+			variant="secondary"
+			on:click={closeLogModal}
+		>
+			Close
+		</Button>
 	</div>
-{/if}
+</Modal>

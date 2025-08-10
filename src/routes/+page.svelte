@@ -1,14 +1,10 @@
 <script>
+	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	
 	export let data;
 	
 	function formatTimestamp(timestamp) {
 		return new Date(timestamp).toLocaleString();
-	}
-	
-	function getStatusBadgeClass(success) {
-		return success 
-			? 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800'
-			: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800';
 	}
 </script>
 
@@ -171,9 +167,7 @@
 							<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
 								<div class="flex items-start sm:items-center">
 									<div class="flex-shrink-0">
-										<span class={getStatusBadgeClass(log.success)}>
-											{log.success ? 'Success' : 'Failed'}
-										</span>
+										<StatusBadge success={log.success} />
 									</div>
 									<div class="ml-3 sm:ml-4 min-w-0 flex-1">
 										<div class="text-sm font-medium text-gray-900 truncate">
