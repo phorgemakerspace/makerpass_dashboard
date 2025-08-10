@@ -11,11 +11,16 @@ class RFIDWebSocketServer {
 	init(server) {
 		this.wss = new WebSocketServer({ 
 			server,
-			path: '/ws'
+			path: '/ws',
+			// IoT-friendly WebSocket settings
+			perMessageDeflate: false, // Disable compression to reduce CPU load
+			clientTracking: true,
+			maxPayload: 1024 * 16 // 16KB max payload (sufficient for RFID data)
 		});
 
 		this.wss.on('connection', (ws, request) => {
-			console.log('New WebSocket connection');
+			const clientIP = request.socket.remoteAddress;
+			console.log(`New WebSocket connection from ${clientIP}`);
 			
 			ws.on('message', (data) => {
 				try {
@@ -33,19 +38,31 @@ class RFIDWebSocketServer {
 				}
 			});
 
-			ws.on('close', () => {
+			ws.on('close', (code, reason) => {
+				console.log(`WebSocket closed from ${clientIP}: code=${code}, reason=${reason?.toString()}`);
 				this.handleDisconnect(ws);
 			});
 
 			ws.on('error', (error) => {
-				console.error('WebSocket error:', error);
+				console.error(`WebSocket error from ${clientIP}:`, error);
+			});
+
+			// Set up connection monitoring
+			ws.isAlive = true;
+			ws.on('pong', () => {
+				ws.isAlive = true;
 			});
 		});
 
-		// Heartbeat check every 30 seconds
+		// Heartbeat check every 2 minutes (IoT-friendly)
 		setInterval(() => {
 			this.checkHeartbeats();
-		}, 30000);
+		}, 120000); // 2 minutes
+
+		// Send ping to devices every 5 minutes to keep connection alive
+		setInterval(() => {
+			this.sendPingsToDevices();
+		}, 300000); // 5 minutes
 
 		console.log('WebSocket server initialized');
 	}
@@ -146,14 +163,15 @@ class RFIDWebSocketServer {
 			}
 		}));
 
+		console.log(`Device authenticated: ${resourceId} (${resource.name})`);
+		console.log(`Connection timeout set to 15 minutes, server pings every 5 minutes`);
+
 		// Notify admins of device connection
 		this.broadcastToAdmins({
 			type: 'device_status',
 			resource_id: resourceId,
 			status: 'online'
 		});
-
-		console.log(`Device authenticated: ${resourceId} (${resource.name})`);
 	}
 
 	authenticateAdmin(ws, message) {
@@ -198,8 +216,12 @@ class RFIDWebSocketServer {
 			const device = this.devices.get(ws.resourceId);
 			if (device) {
 				device.lastHeartbeat = Date.now();
+				console.log(`Heartbeat received from device: ${ws.resourceId}`);
 			}
 		}
+		
+		// Mark connection as alive for ping/pong monitoring
+		ws.isAlive = true;
 		
 		// Support both heartbeat_ack and pong responses
 		const responseType = message.type === 'ping' ? 'pong' : 'heartbeat_ack';
@@ -431,11 +453,11 @@ class RFIDWebSocketServer {
 
 	checkHeartbeats() {
 		const now = Date.now();
-		const timeout = 60000; // 1 minute timeout
+		const timeout = 900000; // 15 minutes timeout (IoT-friendly)
 
 		for (const [resourceId, device] of this.devices.entries()) {
 			if (now - device.lastHeartbeat > timeout) {
-				console.log(`Device timeout: ${resourceId}`);
+				console.log(`Device timeout after ${timeout/60000} minutes: ${resourceId}`);
 				device.ws.terminate();
 				this.devices.delete(resourceId);
 				resourceDb.updateConnectionStatus(resourceId, 'offline');
@@ -445,6 +467,19 @@ class RFIDWebSocketServer {
 					resource_id: resourceId,
 					status: 'offline'
 				});
+			}
+		}
+	}
+
+	sendPingsToDevices() {
+		console.log(`Sending keepalive pings to ${this.devices.size} devices`);
+		for (const [resourceId, device] of this.devices.entries()) {
+			if (device.ws.readyState === 1) { // WebSocket.OPEN
+				try {
+					device.ws.send(JSON.stringify({ type: 'ping' }));
+				} catch (error) {
+					console.error(`Failed to send ping to device ${resourceId}:`, error);
+				}
 			}
 		}
 	}

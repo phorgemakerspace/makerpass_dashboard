@@ -16,8 +16,13 @@ const { rfidWebSocket } = await import(websocketPath);
 const port = process.env.PORT || 3000;
 const host = process.env.HOST || '0.0.0.0';
 
-// Create HTTP server
+// Create HTTP server with IoT-friendly settings
 const server = createServer(handler);
+
+// Configure server timeouts for IoT devices
+server.keepAliveTimeout = 620000; // 10 minutes + 20 seconds
+server.headersTimeout = 630000; // 10 minutes + 30 seconds  
+server.timeout = 900000; // 15 minutes total timeout
 
 // Initialize WebSocket server
 console.log('Initializing WebSocket server...');
