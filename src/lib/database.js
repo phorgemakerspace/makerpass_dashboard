@@ -937,8 +937,8 @@ export const logDb = {
 		const db = getDb();
 		const endTimestamp = endTime || new Date().toISOString();
 		
-		// Get the session data to determine who started it
-		const log = db.prepare('SELECT session_start, user_id FROM access_logs WHERE id = ?').get(logId);
+		// Get the session data to determine who started it and calculate duration
+		const log = db.prepare('SELECT session_start, user_id, resource_id, rfid FROM access_logs WHERE id = ?').get(logId);
 		
 		let usageMinutes = 0;
 		if (log && log.session_start) {
@@ -947,20 +947,27 @@ export const logDb = {
 			usageMinutes = Math.floor((end - start) / (1000 * 60)); // Convert to minutes
 		}
 		
+		// Update the original log entry with session_end and usage_minutes for reference
+		const updateStmt = db.prepare(`
+			UPDATE access_logs SET 
+				session_end = ?, 
+				usage_minutes = ?
+			WHERE id = ?
+		`);
+		updateStmt.run(endTimestamp, usageMinutes, logId);
+		
+		// Create a separate log entry for the session end
 		// Determine reason based on who is ending the session
 		let reason = 'Session ended'; // Default (forced termination)
 		if (endingUserId && log && endingUserId === log.user_id) {
 			reason = 'Session completed'; // Same user ending their own session
 		}
 		
-		const stmt = db.prepare(`
-			UPDATE access_logs SET 
-				session_end = ?, 
-				usage_minutes = ?, 
-				reason = ?
-			WHERE id = ?
+		const endLogStmt = db.prepare(`
+			INSERT INTO access_logs (user_id, resource_id, rfid, success, access_granted, reason, session_end, usage_minutes, access_time) 
+			VALUES (?, ?, ?, 1, 1, ?, ?, ?, ?)
 		`);
-		return stmt.run(endTimestamp, usageMinutes, reason, logId);
+		return endLogStmt.run(log.user_id, log.resource_id, log.rfid, reason, endTimestamp, usageMinutes, endTimestamp);
 	},
 
 	getActiveSession(resourceId) {

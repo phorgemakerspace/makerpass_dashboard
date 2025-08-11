@@ -1,5 +1,5 @@
 import { error, fail } from '@sveltejs/kit';
-import { resourceDb, maintenanceDb } from '$lib/database.js';
+import { resourceDb, maintenanceDb, adminDb } from '$lib/database.js';
 
 export async function load({ params }) {
 	const resource = resourceDb.getByResourceId(params.resource_id);
@@ -31,11 +31,15 @@ export async function load({ params }) {
 	// Get recent access logs
 	const accessLogs = resourceDb.getAccessLogs(resource.id, 20);
 	
+	// Get timezone setting
+	const timezone = adminDb.getTimezone();
+	
 	return {
 		resource,
 		maintenanceIntervals: intervalsWithStatus,
 		maintenanceEvents,
-		accessLogs
+		accessLogs,
+		timezone
 	};
 }
 

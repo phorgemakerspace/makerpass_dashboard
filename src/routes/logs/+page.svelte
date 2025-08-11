@@ -4,8 +4,12 @@
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import { createDateFormatter } from '$lib/utils/datetime.js';
 	
 	export let data;
+	
+	// Create timezone-aware date formatter
+	$: dateFormatter = createDateFormatter(data.timezone);
 	
 	let resourceFilter = data.filters.resourceId || '';
 	let userFilter = data.filters.userId || '';
@@ -35,10 +39,6 @@
 		goto('/logs', { replaceState: true });
 	}
 	
-	function formatTimestamp(timestamp) {
-		return new Date(timestamp).toLocaleString();
-	}
-	
 	function getReasonText(reason) {
 		const reasonMap = {
 			'granted': 'Access Granted',
@@ -60,7 +60,7 @@
 		const csvData = [
 			headers,
 			...data.logs.map(log => [
-				formatTimestamp(log.timestamp),
+				dateFormatter.formatDateTimeShort(log.timestamp),
 				log.success ? 'Success' : 'Failed',
 				log.user_name || 'Unknown',
 				log.user_email || '',
@@ -192,7 +192,7 @@
 									<div class="flex items-center justify-between">
 										<StatusBadge success={log.success} />
 										<span class="text-xs text-gray-500">
-											{formatTimestamp(log.timestamp)}
+											{dateFormatter.formatDateTimeShort(log.timestamp)}
 										</span>
 									</div>
 									<div class="text-sm">
@@ -240,7 +240,7 @@
 							{#each data.logs as log}
 								<tr class="hover:bg-gray-50">
 									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-										{formatTimestamp(log.timestamp)}
+										{dateFormatter.formatDateTimeShort(log.timestamp)}
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
 										<StatusBadge success={log.success} />

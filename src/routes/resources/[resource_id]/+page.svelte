@@ -1,9 +1,13 @@
 <script>
 	import { enhance } from '$app/forms';
 	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
+	import { createDateFormatter } from '$lib/utils/datetime.js';
 	
 	export let data;
 	export let form;
+	
+	// Create timezone-aware date formatter
+	$: dateFormatter = createDateFormatter(data.timezone);
 	
 	// Don't destructure data here - access it reactively in the template
 	// const { resource, maintenanceIntervals, maintenanceEvents, accessLogs } = data;
@@ -174,10 +178,6 @@
 		return `${hours}h ${mins}m`;
 	}
 	
-	function formatDateTime(timestamp) {
-		return new Date(timestamp).toLocaleString();
-	}
-	
 	function getConnectionStatusColor(status) {
 		return status === 'online' ? 'text-green-600' : 'text-gray-400';
 	}
@@ -306,12 +306,12 @@
 						{/if}
 						<div>
 							<dt class="text-sm font-medium text-gray-500">Created</dt>
-							<dd class="text-sm text-gray-900">{formatDateTime(data.resource.created_at)}</dd>
+							<dd class="text-sm text-gray-900">{dateFormatter.formatDateTimeShort(data.resource.created_at)}</dd>
 						</div>
 						{#if data.resource.updated_at}
 							<div>
 								<dt class="text-sm font-medium text-gray-500">Last Updated</dt>
-								<dd class="text-sm text-gray-900">{formatDateTime(data.resource.updated_at)}</dd>
+								<dd class="text-sm text-gray-900">{dateFormatter.formatDateTimeShort(data.resource.updated_at)}</dd>
 							</div>
 						{/if}
 					</dl>
@@ -332,14 +332,17 @@
 									<div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
 										<div>
 											<p class="text-sm font-medium text-gray-900">{log.user_name || `User ${log.user_id}`}</p>
-											<p class="text-xs text-gray-500">{formatDateTime(log.access_time)}</p>
+											<p class="text-xs text-gray-500">{dateFormatter.formatDateTimeShort(log.access_time)}</p>
+											{#if log.reason && (log.reason === 'Session started' || log.reason === 'Session completed' || log.reason === 'Session ended')}
+												<p class="text-xs text-blue-600">{log.reason}</p>
+											{/if}
 										</div>
 										<div class="text-right">
 											<span class="text-xs px-2 py-1 rounded-full {log.access_granted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
 												{log.access_granted ? 'Granted' : 'Denied'}
 											</span>
 											{#if log.usage_minutes}
-												<p class="text-xs text-gray-500 mt-1">{formatDuration(log.usage_minutes)}</p>
+												<p class="text-xs text-gray-500 mt-1">{formatDuration(log.usage_minutes)} session</p>
 											{/if}
 										</div>
 									</div>
@@ -463,7 +466,7 @@
 													</span>
 												</div>
 												<p class="text-xs text-gray-500 mt-1">
-													{formatDateTime(event.maintenance_date)}
+													{dateFormatter.formatDateTimeShort(event.maintenance_date)}
 												</p>
 											</div>
 										</div>

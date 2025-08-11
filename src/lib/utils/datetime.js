@@ -37,7 +37,7 @@ export function formatDateTime(timestamp, timezone = 'America/New_York', options
 }
 
 /**
- * Format a timestamp as a short date (no seconds or timezone)
+ * Format a timestamp as a short date (mm/dd/yyyy format)
  * @param {string|Date} timestamp - The timestamp to format
  * @param {string} timezone - The timezone to display in
  * @returns {string} Formatted date string
@@ -45,15 +45,14 @@ export function formatDateTime(timestamp, timezone = 'America/New_York', options
 export function formatDateTimeShort(timestamp, timezone = 'America/New_York') {
 	return formatDateTime(timestamp, timezone, {
 		year: 'numeric',
-		month: 'short',
-		day: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit'
+		month: '2-digit',
+		day: '2-digit',
+		timeZoneName: undefined  // Explicitly remove timezone display
 	});
 }
 
 /**
- * Format a timestamp as just the date
+ * Format a timestamp as just the date (mm/dd/yyyy format)
  * @param {string|Date} timestamp - The timestamp to format
  * @param {string} timezone - The timezone to display in
  * @returns {string} Formatted date string
@@ -61,8 +60,8 @@ export function formatDateTimeShort(timestamp, timezone = 'America/New_York') {
 export function formatDate(timestamp, timezone = 'America/New_York') {
 	return formatDateTime(timestamp, timezone, {
 		year: 'numeric',
-		month: 'short',
-		day: 'numeric'
+		month: '2-digit',
+		day: '2-digit'
 	});
 }
 

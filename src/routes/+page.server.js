@@ -1,4 +1,4 @@
-import { userDb, resourceDb, logDb, maintenanceDb } from '$lib/database.js';
+import { userDb, resourceDb, logDb, maintenanceDb, adminDb } from '$lib/database.js';
 
 export async function load() {
 	const users = userDb.getAll();
@@ -18,6 +18,9 @@ export async function load() {
 	const successfulToday = todayLogs.filter(log => log.success).length;
 	const failedToday = todayLogs.filter(log => !log.success).length;
 
+	// Get timezone setting
+	const timezone = adminDb.getTimezone();
+
 	return {
 		stats: {
 			totalUsers: users.length,
@@ -32,6 +35,7 @@ export async function load() {
 		resources,
 		recentLogs,
 		activeSessions,
-		maintenanceAlerts
+		maintenanceAlerts,
+		timezone
 	};
 }

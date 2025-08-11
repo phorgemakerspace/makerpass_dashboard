@@ -1,4 +1,4 @@
-import { logDb, userDb, resourceDb } from '$lib/database.js';
+import { logDb, userDb, resourceDb, adminDb } from '$lib/database.js';
 
 export async function load({ url }) {
 	const users = userDb.getAll();
@@ -20,10 +20,14 @@ export async function load({ url }) {
 	
 	const logs = logDb.getAll(filters);
 	
+	// Get timezone setting
+	const timezone = adminDb.getTimezone();
+	
 	return {
 		logs,
 		users,
 		resources,
+		timezone,
 		filters: {
 			resourceId,
 			userId,

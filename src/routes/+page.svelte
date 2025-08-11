@@ -1,10 +1,14 @@
 <script>
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { createDateFormatter } from '$lib/utils/datetime.js';
 	
 	export let data;
 	
+	// Create timezone-aware date formatter
+	$: dateFormatter = createDateFormatter(data.timezone);
+	
 	function formatTimestamp(timestamp) {
-		return new Date(timestamp).toLocaleString();
+		return dateFormatter.formatDateTimeShort(timestamp);
 	}
 </script>
 
