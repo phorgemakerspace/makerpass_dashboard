@@ -146,11 +146,15 @@
 
 	// Maintenance threshold slider
 	let maintenanceThreshold = data.maintenanceThreshold || 75;
+	let timezone = data.timezone || 'America/New_York';
 	
 	// Sync with server data when it changes (after form submissions)
 	$: {
 		if (data.maintenanceThreshold !== undefined) {
 			maintenanceThreshold = data.maintenanceThreshold;
+		}
+		if (data.timezone !== undefined) {
+			timezone = data.timezone;
 		}
 	}
 </script>
@@ -668,6 +672,50 @@
 									class="btn-primary px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
 								>
 									Save Threshold
+								</button>
+							</div>
+						</form>
+					</div>
+
+					<div class="bg-white p-4 sm:p-6 rounded-lg shadow mt-6">
+						<h2 class="text-lg font-medium text-gray-900 mb-4">Timezone Settings</h2>
+						<p class="text-sm text-gray-600 mb-4">Configure the timezone for displaying timestamps throughout the application.</p>
+						
+						<form method="POST" action="?/updateTimezone" use:enhance class="space-y-4">
+							<input type="hidden" name="admin_id" value={data.adminId} />
+							<div>
+								<label for="timezone" class="block text-sm font-medium text-gray-700 mb-2">
+									Timezone
+								</label>
+								<select
+									id="timezone"
+									name="timezone"
+									bind:value={timezone}
+									class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm"
+								>
+									<option value="America/New_York">Eastern Time (America/New_York)</option>
+									<option value="America/Chicago">Central Time (America/Chicago)</option>
+									<option value="America/Denver">Mountain Time (America/Denver)</option>
+									<option value="America/Los_Angeles">Pacific Time (America/Los_Angeles)</option>
+									<option value="America/Anchorage">Alaska Time (America/Anchorage)</option>
+									<option value="Pacific/Honolulu">Hawaii Time (Pacific/Honolulu)</option>
+									<option value="UTC">UTC (Universal Time)</option>
+									<option value="Europe/London">London (Europe/London)</option>
+									<option value="Europe/Paris">Paris (Europe/Paris)</option>
+									<option value="Europe/Berlin">Berlin (Europe/Berlin)</option>
+									<option value="Asia/Tokyo">Tokyo (Asia/Tokyo)</option>
+									<option value="Australia/Sydney">Sydney (Australia/Sydney)</option>
+								</select>
+								<p class="mt-2 text-sm text-gray-500">
+									All timestamps throughout the application will be displayed in the selected timezone.
+								</p>
+							</div>
+							<div class="flex justify-end">
+								<button
+									type="submit"
+									class="btn-primary px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+								>
+									Save Timezone
 								</button>
 							</div>
 						</form>

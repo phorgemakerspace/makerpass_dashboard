@@ -164,6 +164,13 @@ function initializeDatabase() {
 		// Column already exists, ignore the error
 	}
 	
+	// Add timezone column to existing admin table if it doesn't exist
+	try {
+		db.prepare("ALTER TABLE admin ADD COLUMN timezone TEXT DEFAULT 'America/New_York'").run();
+	} catch (error) {
+		// Column already exists, ignore the error
+	}
+	
 	try {
 		db.prepare("ALTER TABLE resources ADD COLUMN category TEXT").run();
 	} catch (error) {
@@ -470,7 +477,7 @@ export const resourceDb = {
 		return db.prepare(`
 			SELECT 
 				al.*,
-				u.name as user_name_from_users
+				COALESCE(u.name, al.user_name) as user_name
 			FROM access_logs al
 			LEFT JOIN users u ON al.user_id = u.id
 			WHERE al.resource_id = ?
@@ -855,8 +862,7 @@ export const logDb = {
 				al.usage_minutes,
 				al.access_time,
 				al.timestamp,
-				al.user_name,
-				u.name as user_name_from_users,
+				COALESCE(u.name, al.user_name) as user_name,
 				u.email as user_email,
 				r.resource_id,
 				r.name as resource_name,
@@ -921,8 +927,8 @@ export const logDb = {
 	startSession(userId, resourceId, rfid) {
 		const db = getDb();
 		const stmt = db.prepare(`
-			INSERT INTO access_logs (user_id, resource_id, rfid, success, reason, session_start) 
-			VALUES (?, ?, ?, 1, 'Session started', ?)
+			INSERT INTO access_logs (user_id, resource_id, rfid, success, access_granted, reason, session_start) 
+			VALUES (?, ?, ?, 1, 1, 'Session started', ?)
 		`);
 		return stmt.run(userId, resourceId, rfid, new Date().toISOString());
 	},
@@ -1158,6 +1164,21 @@ export const adminDb = {
 			UPDATE admin SET maintenance_threshold = ? WHERE id = ?
 		`);
 		return stmt.run(threshold, id);
+	},
+
+	// Timezone settings
+	getTimezone() {
+		const db = getDb();
+		const admin = db.prepare('SELECT timezone FROM admin LIMIT 1').get();
+		return admin?.timezone || 'America/New_York';
+	},
+
+	updateTimezone(id, timezone) {
+		const db = getDb();
+		const stmt = db.prepare(`
+			UPDATE admin SET timezone = ? WHERE id = ?
+		`);
+		return stmt.run(timezone, id);
 	},
 
 	// Cleanup functions

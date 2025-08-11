@@ -5,6 +5,7 @@ export async function load() {
 	const admin = adminDb.getAdmin();
 	const retentionSettings = adminDb.getRetentionSettings();
 	const maintenanceThreshold = adminDb.getMaintenanceThreshold();
+	const timezone = adminDb.getTimezone();
 	const dataStats = adminDb.getDataStatistics();
 	
 	// Get Stripe settings
@@ -26,6 +27,7 @@ export async function load() {
 		accessLogRetentionDays: retentionSettings.accessLogRetentionDays,
 		maintenanceLogRetentionDays: retentionSettings.maintenanceLogRetentionDays,
 		maintenanceThreshold: maintenanceThreshold,
+		timezone: timezone,
 		dataStatistics: dataStats,
 		...stripeSettings
 	};
@@ -232,6 +234,24 @@ export const actions = {
 		} catch (error) {
 			console.error('Update Stripe settings error:', error);
 			return fail(500, { error: 'Failed to update Stripe settings' });
+		}
+	},
+
+	updateTimezone: async ({ request }) => {
+		const data = await request.formData();
+		const timezone = data.get('timezone');
+		const adminId = data.get('admin_id');
+
+		if (!timezone || !adminId) {
+			return fail(400, { error: 'Timezone and admin ID are required' });
+		}
+
+		try {
+			adminDb.updateTimezone(adminId, timezone);
+			return { success: true, message: 'Timezone updated successfully' };
+		} catch (error) {
+			console.error('Update timezone error:', error);
+			return fail(500, { error: 'Failed to update timezone' });
 		}
 	}
 };
