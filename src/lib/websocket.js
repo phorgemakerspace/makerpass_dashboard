@@ -81,6 +81,7 @@ class RFIDWebSocketServer {
 					break;
 				case 'heartbeat':
 				case 'ping': // Support ping/pong for compatibility
+				case 'pong': // Handle pong responses from devices
 					this.handleHeartbeat(ws, message);
 					break;
 				case 'rfid_scan':
