@@ -1,6 +1,21 @@
 import { error, json } from '@sveltejs/kit';
 import { getDb, settingsDb } from '$lib/database.js';
 import crypto from 'crypto';
+import Stripe from 'stripe';
+
+// Lazy-initialized Stripe client using the saved secret key
+let stripeClient = null;
+function getStripeClient() {
+	const secretKey = settingsDb.get('stripe_secret_key');
+	if (!secretKey) return null;
+	if (!stripeClient) {
+		stripeClient = new Stripe(secretKey, {
+			// Use a recent stable API version if not set at the account level
+			apiVersion: '2024-06-20',
+		});
+	}
+	return stripeClient;
+}
 
 export async function POST({ request }) {
 	try {
@@ -101,17 +116,13 @@ export async function POST({ request }) {
 async function handleSubscriptionEvent(subscription, db) {
 	console.log('Handling subscription event for customer:', subscription.customer);
 	const customerId = subscription.customer;
-	
-	// Get subscription details
-	const subscriptionItem = subscription.items.data[0];
-	const subscriptionType = subscriptionItem?.price?.nickname || 
-							 subscriptionItem?.price?.lookup_key ||
-							 subscriptionItem?.price?.id ||
-							 'Unknown';
-	
+
+	// Get a friendly plan name (prefer price nickname or product name)
+	const subscriptionType = await getPlanNameFromSubscription(subscription);
+
 	const subscriptionExpires = new Date(subscription.current_period_end * 1000).toISOString();
 	const status = subscription.status;
-	
+
 	console.log('Processing subscription:', { customerId, subscriptionType, subscriptionExpires, status });
 
 	try {
@@ -249,20 +260,60 @@ async function handlePaymentFailed(invoice, db) {
 
 // Helper function to get Stripe customer (you'll need to implement this with Stripe SDK)
 async function getStripeCustomer(customerId) {
-	// This is a placeholder - you'll need to implement actual Stripe API call
-	// For now, return a mock customer to test the webhook structure
-	return {
-		id: customerId,
-		email: 'webhook-test@example.com',
-		name: 'Webhook Test User',
-		address: {
-			line1: '123 Main St',
-			city: 'Anytown',
-			state: 'CA',
-			postal_code: '12345',
-			country: 'US'
+	const stripe = getStripeClient();
+	if (!stripe) {
+		console.error('Stripe secret key not configured; cannot retrieve customer');
+		return null;
+	}
+	try {
+		const customer = await stripe.customers.retrieve(customerId);
+		// The Stripe API returns a DeletedCustomer when not found; guard against that
+		if (customer && !('deleted' in customer && customer.deleted)) {
+			return customer;
 		}
-	};
+		return null;
+	} catch (e) {
+		console.error('Failed to retrieve Stripe customer:', e);
+		return null;
+	}
+}
+
+// Resolve a human-friendly plan name from a subscription
+async function getPlanNameFromSubscription(subscription) {
+	try {
+		const item = subscription?.items?.data?.[0];
+		const price = item?.price;
+		if (!price) return 'Unknown';
+
+		// 1) Prefer explicit price nickname if set in Stripe dashboard
+		if (price.nickname) return price.nickname;
+
+		// 2) Try expanded product name if present in payload
+		if (price.product && typeof price.product === 'object' && price.product.name) {
+			return price.product.name;
+		}
+
+		// 3) If we only have a product ID, fetch the product to get its name
+		if (price.product && typeof price.product === 'string') {
+			const stripe = getStripeClient();
+			if (stripe) {
+				try {
+					const product = await stripe.products.retrieve(price.product);
+					if (product?.name) return product.name;
+				} catch (err) {
+					console.warn('Unable to retrieve product for plan name:', err?.message || err);
+				}
+			}
+		}
+
+		// 4) Fallbacks: lookup_key (dashboard-friendly) then the price ID
+		if (price.lookup_key) return price.lookup_key;
+		if (price.id) return price.id;
+		return 'Unknown';
+	} catch (e) {
+		console.warn('Failed to resolve plan name from subscription:', e);
+		return 'Unknown';
+	}
 }
 
 function generateTempRfid() {

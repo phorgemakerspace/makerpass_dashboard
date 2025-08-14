@@ -22,6 +22,7 @@
 		"@sveltejs/adapter-node": "^5.2.13",
 		"@tailwindcss/forms": "^0.5.10",
 		"better-sqlite3": "^12.2.0",
+		"stripe": "^16.6.0",
 		"ws": "^8.18.3"
 	}
 }
