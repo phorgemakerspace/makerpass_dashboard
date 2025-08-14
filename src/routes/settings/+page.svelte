@@ -2,6 +2,8 @@
 	import { enhance } from '$app/forms';
 	import { browser } from '$app/environment';
 	import TabNavigation from '$lib/components/TabNavigation.svelte';
+	import Modal from '$lib/components/Modal.svelte';
+	import Button from '$lib/components/Button.svelte';
 	
 	export let data;
 	export let form;
@@ -155,6 +157,42 @@
 		}
 		if (data.timezone !== undefined) {
 			timezone = data.timezone;
+		}
+	}
+
+	// Stripe sync modal state
+	let showSyncModal = false;
+	let syncInProgress = false;
+	let syncMessage = '';
+	let syncStats = null;
+	let syncError = '';
+
+	async function startStripeSync() {
+		showSyncModal = true;
+		syncInProgress = true;
+		syncMessage = 'Syncing users from Stripe... This may take a few minutes for large accounts.';
+		syncStats = null;
+		syncError = '';
+		const fd = new FormData();
+		fd.append('admin_id', data.adminId);
+		try {
+			const res = await fetch('?/syncStripeUsers', { method: 'POST', body: fd });
+			const out = await res.json().catch(() => ({}));
+			const payload = out?.data ?? out;
+			if (!res.ok) {
+				syncError = payload?.error || 'Failed to sync users from Stripe';
+				syncMessage = 'Sync failed';
+			} else {
+				syncStats = payload?.stats || null;
+				syncMessage = payload?.message || (syncStats
+					? `Sync complete. Processed ${syncStats.processed}, created ${syncStats.created}, updated ${syncStats.updated}, disabled ${syncStats.disabled}.`
+					: 'Sync complete');
+			}
+		} catch (e) {
+			syncError = 'Network error during sync';
+			syncMessage = 'Sync failed';
+		} finally {
+			syncInProgress = false;
 		}
 	}
 </script>
@@ -1011,24 +1049,15 @@
 									>
 										Save Stripe Settings
 									</button>
-									<button
+									<Button
+										variant="primary"
 										type="button"
-										class="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md shadow-sm hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2"
+										class="bg-purple-600 hover:bg-purple-700"
 										title="Import and update users from Stripe subscriptions"
-										on:click={async () => {
-											const fd = new FormData();
-											fd.append('admin_id', data.adminId);
-											const res = await fetch('?/syncStripeUsers', { method: 'POST', body: fd });
-											if (res.ok) {
-												const out = await res.json();
-												alert(out.message || 'Sync complete');
-											} else {
-												alert('Failed to sync users from Stripe');
-											}
-										}}
+										on:click={startStripeSync}
 									>
 										Sync Users
-									</button>
+									</Button>
 								</div>
 							</div>
 						</form>
@@ -1037,4 +1066,41 @@
 			</div>
 		</div>
 	</div>
+
+	<!-- Sync Users Progress Modal -->
+	<Modal isOpen={showSyncModal} title="Sync Users from Stripe" size="large" on:close={() => { if (!syncInProgress) showSyncModal = false; }}>
+		<div class="space-y-4">
+			{#if syncInProgress}
+				<div class="flex items-center space-x-3">
+					<svg class="animate-spin h-5 w-5 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+					</svg>
+					<p class="text-sm text-gray-700">{syncMessage}</p>
+				</div>
+				<div class="w-full bg-gray-200 rounded h-2 overflow-hidden">
+					<div class="h-2 bg-primary animate-pulse" style="width: 60%"></div>
+				</div>
+			{:else}
+				{#if syncError}
+					<p class="text-sm text-red-600">{syncError}</p>
+				{:else}
+					<p class="text-sm text-gray-800">{syncMessage}</p>
+					{#if syncStats}
+						<ul class="text-sm text-gray-700 list-disc pl-5 space-y-1">
+							<li>Processed: {syncStats.processed}</li>
+							<li>Created: {syncStats.created}</li>
+							<li>Updated: {syncStats.updated}</li>
+							<li>Disabled: {syncStats.disabled}</li>
+						</ul>
+					{/if}
+				{/if}
+			{/if}
+		</div>
+
+		<div slot="footer" class="flex justify-end space-x-3">
+			<Button variant="secondary" on:click={() => { if (!syncInProgress) showSyncModal = false; }} disabled={syncInProgress}>Close</Button>
+			<Button variant="primary" on:click={() => window.location.href = '/users'} disabled={syncInProgress}>View Users</Button>
+		</div>
+	</Modal>
 </div>

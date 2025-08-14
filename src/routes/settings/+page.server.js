@@ -29,12 +29,21 @@ function formatAddress(address) {
 	return parts.join(', ');
 }
 
-async function resolvePlanName(subscription) {
+async function resolvePlanName(subscription, stripe) {
 	const item = subscription?.items?.data?.[0];
 	const price = item?.price;
 	if (!price) return 'Unknown';
 	if (price.nickname) return price.nickname;
 	if (price.product && typeof price.product === 'object' && price.product.name) return price.product.name;
+	// If we only have a product ID, fetch the product name (optional, requires Stripe client)
+	if (price.product && typeof price.product === 'string' && stripe) {
+		try {
+			const product = await stripe.products.retrieve(price.product);
+			if (product?.name) return product.name;
+		} catch (e) {
+			// ignore and fall back
+		}
+	}
 	if (price.lookup_key) return price.lookup_key;
 	if (price.id) return price.id;
 	return 'Unknown';
@@ -314,30 +323,35 @@ export const actions = {
 		let processed = 0;
 
 		try {
-			// Pull subscriptions in pages; expand customer and product for names
-			let starting_after = undefined;
-			// Process all statuses so we can also disable canceled users
-			while (true) {
-				const page = await stripe.subscriptions.list({
-					limit: 100,
-					starting_after,
-					expand: ['data.customer', 'data.items.data.price.product']
-				});
+			// Iterate across relevant statuses to ensure we pull everything
+			const statuses = ['incomplete', 'incomplete_expired', 'trialing', 'active', 'past_due', 'canceled', 'unpaid', 'paused'];
+			const seenSubs = new Set();
+			for (const statusFilter of statuses) {
+				let starting_after = undefined;
+				while (true) {
+					const page = await stripe.subscriptions.list({
+						limit: 100,
+						starting_after,
+						status: statusFilter,
+						expand: ['data.customer', 'data.items.data.price']
+					});
 
-				for (const sub of page.data) {
+					for (const sub of page.data) {
+						if (seenSubs.has(sub.id)) continue;
+						seenSubs.add(sub.id);
 					processed++;
 					const customer = sub.customer;
 					const stripeCustomer = typeof customer === 'object' ? customer : await stripe.customers.retrieve(customer);
 					if (!stripeCustomer || ('deleted' in stripeCustomer && stripeCustomer.deleted)) continue;
 
-					const planName = await resolvePlanName(sub);
+					const planName = await resolvePlanName(sub, stripe);
 					const expiresIso = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
 					const status = sub.status;
 					const enableUser = status === 'active' || status === 'trialing' ? 1 : 0;
 
 					let user = db.prepare('SELECT * FROM users WHERE customer_id = ?').get(stripeCustomer.id);
 					if (!user && stripeCustomer.email) {
-						user = db.prepare('SELECT * FROM users WHERE email = ?').get(stripeCustomer.email);
+						user = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(stripeCustomer.email);
 					}
 
 					if (user) {
@@ -366,13 +380,13 @@ export const actions = {
 							user.id
 						);
 						updated++;
-					} else if (stripeCustomer.email && stripeCustomer.name) {
+					} else if (stripeCustomer.email) {
 						// Create a new user from Stripe customer
 						db.prepare(`
 							INSERT INTO users (name, email, rfid, customer_id, subscription_type, subscription_expires, enabled, address)
 							VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 						`).run(
-							stripeCustomer.name,
+							stripeCustomer.name || (stripeCustomer.email.split('@')[0]),
 							stripeCustomer.email,
 							generateTempRfid(),
 							stripeCustomer.id,
@@ -389,12 +403,13 @@ export const actions = {
 						const res = db.prepare('UPDATE users SET enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE customer_id = ?').run(stripeCustomer.id);
 						if (res.changes > 0) disabled += res.changes;
 					}
-				}
+					}
 
-				if (page.has_more) {
-					starting_after = page.data[page.data.length - 1].id;
-				} else {
-					break;
+					if (page.has_more) {
+						starting_after = page.data[page.data.length - 1].id;
+					} else {
+						break;
+					}
 				}
 			}
 
