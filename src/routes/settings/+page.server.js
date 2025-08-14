@@ -1,5 +1,44 @@
 import { fail } from '@sveltejs/kit';
-import { adminDb, settingsDb } from '$lib/database.js';
+import { adminDb, settingsDb, getDb } from '$lib/database.js';
+import Stripe from 'stripe';
+
+const STRIPE_API_VERSION = '2024-06-20';
+
+function getStripeClient() {
+	const secretKey = settingsDb.get('stripe_secret_key');
+	if (!secretKey) return null;
+	return new Stripe(secretKey, { apiVersion: STRIPE_API_VERSION });
+}
+
+function generateTempRfid() {
+	const chars = '0123456789ABCDEF';
+	let result = 'TEMP';
+	for (let i = 0; i < 4; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+	return result;
+}
+
+function formatAddress(address) {
+	if (!address) return null;
+	const parts = [];
+	if (address.line1) parts.push(address.line1);
+	if (address.line2) parts.push(address.line2);
+	if (address.city) parts.push(address.city);
+	if (address.state) parts.push(address.state);
+	if (address.postal_code) parts.push(address.postal_code);
+	if (address.country) parts.push(address.country);
+	return parts.join(', ');
+}
+
+async function resolvePlanName(subscription) {
+	const item = subscription?.items?.data?.[0];
+	const price = item?.price;
+	if (!price) return 'Unknown';
+	if (price.nickname) return price.nickname;
+	if (price.product && typeof price.product === 'object' && price.product.name) return price.product.name;
+	if (price.lookup_key) return price.lookup_key;
+	if (price.id) return price.id;
+	return 'Unknown';
+}
 
 export async function load() {
 	const admin = adminDb.getAdmin();
@@ -252,6 +291,121 @@ export const actions = {
 		} catch (error) {
 			console.error('Update timezone error:', error);
 			return fail(500, { error: 'Failed to update timezone' });
+		}
+	},
+
+	// Sync existing Stripe customers/subscriptions into local users table
+	syncStripeUsers: async ({ request }) => {
+		const data = await request.formData();
+		const adminId = data.get('admin_id');
+		if (!adminId) {
+			return fail(400, { error: 'Admin ID is required' });
+		}
+
+		const stripe = getStripeClient();
+		if (!stripe) {
+			return fail(400, { error: 'Stripe secret key is not configured' });
+		}
+
+		const db = getDb();
+		let created = 0;
+		let updated = 0;
+		let disabled = 0;
+		let processed = 0;
+
+		try {
+			// Pull subscriptions in pages; expand customer and product for names
+			let starting_after = undefined;
+			// Process all statuses so we can also disable canceled users
+			while (true) {
+				const page = await stripe.subscriptions.list({
+					limit: 100,
+					starting_after,
+					expand: ['data.customer', 'data.items.data.price.product']
+				});
+
+				for (const sub of page.data) {
+					processed++;
+					const customer = sub.customer;
+					const stripeCustomer = typeof customer === 'object' ? customer : await stripe.customers.retrieve(customer);
+					if (!stripeCustomer || ('deleted' in stripeCustomer && stripeCustomer.deleted)) continue;
+
+					const planName = await resolvePlanName(sub);
+					const expiresIso = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
+					const status = sub.status;
+					const enableUser = status === 'active' || status === 'trialing' ? 1 : 0;
+
+					let user = db.prepare('SELECT * FROM users WHERE customer_id = ?').get(stripeCustomer.id);
+					if (!user && stripeCustomer.email) {
+						user = db.prepare('SELECT * FROM users WHERE email = ?').get(stripeCustomer.email);
+					}
+
+					if (user) {
+						// Update existing user to be managed by Stripe
+						const stripeName = stripeCustomer.name || null;
+						const stripeEmail = stripeCustomer.email || null;
+						db.prepare(`
+							UPDATE users
+							SET customer_id = ?,
+								name = COALESCE(?, name),
+								email = COALESCE(?, email),
+								subscription_type = ?,
+								subscription_expires = ?,
+								enabled = ?,
+								address = COALESCE(?, address),
+								updated_at = CURRENT_TIMESTAMP
+							WHERE id = ?
+						`).run(
+							stripeCustomer.id,
+							stripeName,
+							stripeEmail,
+							planName,
+							expiresIso,
+							enableUser,
+							formatAddress(stripeCustomer.address),
+							user.id
+						);
+						updated++;
+					} else if (stripeCustomer.email && stripeCustomer.name) {
+						// Create a new user from Stripe customer
+						db.prepare(`
+							INSERT INTO users (name, email, rfid, customer_id, subscription_type, subscription_expires, enabled, address)
+							VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+						`).run(
+							stripeCustomer.name,
+							stripeCustomer.email,
+							generateTempRfid(),
+							stripeCustomer.id,
+							planName,
+							expiresIso,
+							enableUser,
+							formatAddress(stripeCustomer.address)
+						);
+						created++;
+					}
+
+					// If subscription is canceled, ensure user is disabled
+					if (status === 'canceled') {
+						const res = db.prepare('UPDATE users SET enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE customer_id = ?').run(stripeCustomer.id);
+						if (res.changes > 0) disabled += res.changes;
+					}
+				}
+
+				if (page.has_more) {
+					starting_after = page.data[page.data.length - 1].id;
+				} else {
+					break;
+				}
+			}
+
+			return {
+				success: true,
+				message: `Sync complete. Processed ${processed} subscriptions: ${created} created, ${updated} updated, ${disabled} disabled.`,
+				stats: { processed, created, updated, disabled }
+			};
+		} catch (error) {
+			console.error('Sync Stripe users error:', error);
+			return fail(500, { error: 'Failed to sync Stripe users' });
 		}
 	}
 };

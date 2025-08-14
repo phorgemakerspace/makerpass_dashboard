@@ -1004,12 +1004,32 @@
 							</div>
 							
 							<div class="mt-6 flex justify-end">
-								<button
-									type="submit"
-									class="btn-primary px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
-								>
-									Save Stripe Settings
-								</button>
+								<div class="flex items-center space-x-3">
+									<button
+										type="submit"
+										class="btn-primary px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
+									>
+										Save Stripe Settings
+									</button>
+									<button
+										type="button"
+										class="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md shadow-sm hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2"
+										title="Import and update users from Stripe subscriptions"
+										on:click={async () => {
+											const fd = new FormData();
+											fd.append('admin_id', data.adminId);
+											const res = await fetch('?/syncStripeUsers', { method: 'POST', body: fd });
+											if (res.ok) {
+												const out = await res.json();
+												alert(out.message || 'Sync complete');
+											} else {
+												alert('Failed to sync users from Stripe');
+											}
+										}}
+									>
+										Sync Users
+									</button>
+								</div>
 							</div>
 						</form>
 					</div>
